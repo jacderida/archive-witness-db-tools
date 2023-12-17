@@ -1,3 +1,4 @@
+use archive_witness_db_builder::cumulus::read_cumulus_photo_export;
 use archive_witness_db_builder::releases::{download_torrents, import_releases};
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
@@ -21,6 +22,24 @@ enum Commands {
         #[arg(long)]
         path: PathBuf,
     },
+    /// Import image content from a release.
+    ///
+    /// Saves the image content from a release in the database.
+    ///
+    /// If the image is found in NIST's Cumulus export, the metadata from there will be applied to
+    /// it.
+    #[clap(name = "import-image-content")]
+    ImportImageContent {
+        /// Path to the Cumulus data dump file
+        #[arg(long)]
+        cumulus_export_path: PathBuf,
+        /// The ID of the release
+        #[arg(long)]
+        release_id: u16,
+        /// Path to the torrent file corresponding to the release
+        #[arg(long)]
+        torrent_path: PathBuf,
+    },
     /// Import the 911datasets.org releases.
     ///
     /// The binary contains some static data to initialise the releases, but we also use the
@@ -41,6 +60,15 @@ async fn main() -> Result<()> {
     match opt.command {
         Some(Commands::DownloadTorrents { path }) => {
             download_torrents(&path).await?;
+            Ok(())
+        }
+        Some(Commands::ImportImageContent {
+            cumulus_export_path,
+            release_id,
+            torrent_path,
+        }) => {
+            let images = read_cumulus_photo_export(cumulus_export_path)?;
+            println!("Retrieved {} images from the Cumulus export", images.len());
             Ok(())
         }
         Some(Commands::ImportReleases { torrent_path }) => {

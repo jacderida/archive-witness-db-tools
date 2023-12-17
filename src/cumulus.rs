@@ -1,7 +1,9 @@
 use crate::error::{Error, Result};
 use crate::static_data::FIELD_NAME_TYPE_MAP;
-use crate::ImageContent;
+use chrono::NaiveDateTime;
 use encoding_rs::*;
+use sha1::{Digest, Sha1};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
@@ -13,13 +15,164 @@ pub struct Header {
     pub field_uids: Vec<Uuid>,
 }
 
-pub struct Asset {
+pub struct RawAsset {
     pub fields: Vec<(String, String)>,
     pub tags: Vec<String>,
-    pub thumbnail: Vec<u8>,
 }
 
-pub fn read_cumulus_photo_export<P>(file_path: P) -> Result<Vec<ImageContent>>
+#[derive(Clone, Debug)]
+pub struct CumulusImage {
+    pub id: String,
+    pub album: Option<String>,
+    pub caption: Option<String>,
+    pub date_recorded: Option<NaiveDateTime>,
+    pub file_size: u64,
+    pub horizontal_pixels: Option<u16>,
+    pub name: String,
+    pub notes: Option<String>,
+    pub photographers: Vec<String>,
+    pub received_from: Option<String>,
+    pub shot_from: Option<String>,
+    pub tags: Vec<String>,
+    pub vertical_pixels: Option<u16>,
+}
+
+impl CumulusImage {
+    pub fn generate_id(name: &str, file_size: u64) -> String {
+        let mut hasher = Sha1::new();
+        hasher.update(name.as_bytes());
+        hasher.update(file_size.to_be_bytes());
+        let hash = hasher.finalize();
+        format!("{:x}", hash)
+    }
+}
+
+impl From<RawAsset> for CumulusImage {
+    fn from(value: RawAsset) -> Self {
+        let album = value.fields.iter().find(|a| a.0 == "Album").and_then(|a| {
+            if a.1.is_empty() {
+                None
+            } else {
+                Some(a.1.clone())
+            }
+        });
+        let caption = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Caption")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    Some(a.1.clone())
+                }
+            });
+        let date_recorded = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Date Recorded")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    NaiveDateTime::parse_from_str(&a.1, "%Y-%m-%d %H:%M:%S").ok()
+                }
+            });
+        let file_size = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "File Data Size")
+            .map(|a| {
+                let f: u64 = a.1.parse().unwrap();
+                f
+            })
+            .unwrap();
+        let horizontal_pixels = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Horizontal Pixels")
+            .map(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    let h: u16 = a.1.parse().unwrap();
+                    Some(h)
+                }
+            })
+            .unwrap();
+        let name = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Asset Name")
+            .map(|a| a.1.clone())
+            .unwrap();
+        let notes = value.fields.iter().find(|a| a.0 == "Notes").and_then(|a| {
+            if a.1.is_empty() {
+                None
+            } else {
+                Some(a.1.clone())
+            }
+        });
+        let photographers: Vec<String> = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Photographer")
+            .map(|a| a.1.split(',').map(|s| s.trim().to_string()).collect())
+            .unwrap_or_default();
+        let received_from = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Received From")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    Some(a.1.clone())
+                }
+            });
+        let shot_from = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Shot From")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    Some(a.1.clone())
+                }
+            });
+        let vertical_pixels = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Vertical Pixels")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    let v: u16 = a.1.parse().unwrap();
+                    Some(v)
+                }
+            });
+
+        CumulusImage {
+            id: Self::generate_id(&name, file_size),
+            album,
+            caption,
+            date_recorded,
+            file_size,
+            horizontal_pixels,
+            name,
+            notes,
+            photographers,
+            received_from,
+            shot_from,
+            tags: value.tags.clone(),
+            vertical_pixels,
+        }
+    }
+}
+
+pub fn read_cumulus_photo_export<P>(file_path: P) -> Result<HashMap<String, CumulusImage>>
 where
     P: AsRef<Path>,
 {
@@ -27,13 +180,14 @@ where
     file.seek(SeekFrom::Start(0))?;
     let header = read_header(&mut file)?;
 
-    let images = Vec::new();
+    let mut images = HashMap::new();
     let mut count = 1;
     loop {
         match read_asset_data(&mut file, header.field_names.clone()) {
             Ok(asset) => {
-                // convert the asset to an image
-                println!("Read asset {count}: {}", asset.fields.len());
+                let image = CumulusImage::from(asset);
+                images.insert(image.id.clone(), image.clone());
+                println!("Read asset {count}");
                 count += 1;
             }
             Err(err) => match err {
@@ -115,10 +269,9 @@ fn read_header(file: &mut File) -> Result<Header> {
     Ok(header)
 }
 
-fn read_asset_data(file: &mut File, field_names: Vec<String>) -> Result<Asset> {
+fn read_asset_data(file: &mut File, field_names: Vec<String>) -> Result<RawAsset> {
     let mut asset_fields = Vec::new();
     let mut asset_tags = Vec::new();
-    let mut thumbnail = Vec::new();
 
     let mut buffer = [0; 1];
     let mut field_data = Vec::new();
@@ -152,9 +305,9 @@ fn read_asset_data(file: &mut File, field_names: Vec<String>) -> Result<Asset> {
                                 }
                             }
                             "Binary" => {
-                                if field_name == "Thumbnail" {
-                                    thumbnail = field_data.clone();
-                                }
+                                // Nothing to do in this case
+                                // The binary data does not seem to represent an image
+                                // Or perhaps it's compressed
                             }
                             _ => panic!("Field type '{}' not supported", field_type),
                         }
@@ -173,10 +326,9 @@ fn read_asset_data(file: &mut File, field_names: Vec<String>) -> Result<Asset> {
         }
     }
 
-    let asset = Asset {
+    let asset = RawAsset {
         fields: asset_fields,
         tags: asset_tags,
-        thumbnail,
     };
     Ok(asset)
 }
