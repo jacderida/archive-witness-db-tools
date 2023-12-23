@@ -1,10 +1,7 @@
 use crate::error::{Error, Result};
-use crate::establish_connection;
-use crate::models::NewRelease;
-use crate::schema::releases;
+use crate::models::Release;
 use crate::static_data::RELEASE_DATA;
 use chrono::NaiveDate;
-use diesel::prelude::*;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lava_torrent::torrent::v1::Torrent;
 use std::path::PathBuf;
@@ -59,8 +56,7 @@ pub async fn download_torrents(target_path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub fn import_releases(torrents_path: PathBuf) -> Result<()> {
-    let conn = &mut establish_connection()?;
+pub async fn import_releases(torrents_path: PathBuf) -> Result<()> {
     for item in RELEASE_DATA.iter() {
         let date = item.0.to_string();
         let torrent_url = item.1.to_string();
@@ -107,7 +103,9 @@ pub fn import_releases(torrents_path: PathBuf) -> Result<()> {
             (None, None, None)
         };
 
-        let new_release = NewRelease {
+        println!("Saving release {name}...");
+        let new_release = Release {
+            id: 0,
             date: NaiveDate::parse_from_str(&date, "%Y-%m-%d")?,
             name: name.clone(),
             directory_name: directory,
@@ -115,13 +113,17 @@ pub fn import_releases(torrents_path: PathBuf) -> Result<()> {
             size: size.map(|s| s as i64),
             torrent_url: torrent_url.map(|u| u.to_string()),
         };
-
-        println!("Saving release {name}...");
-        diesel::insert_into(releases::table)
-            .values(&new_release)
-            .execute(conn)?;
+        crate::db::save_release(new_release).await?;
     }
 
+    Ok(())
+}
+
+pub async fn list_releases() -> Result<()> {
+    let releases = crate::db::get_releases().await?;
+    for release in releases.iter() {
+        println!("{}: {}", release.id, release.name);
+    }
     Ok(())
 }
 

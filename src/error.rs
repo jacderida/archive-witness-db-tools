@@ -9,14 +9,10 @@ pub enum Error {
     ArchiveFileNotFoundError(String),
     #[error("Error response when downloading file: {0}")]
     ArchiveDownloadFailed(u16),
-    #[error(transparent)]
-    ConnectionError(#[from] diesel::ConnectionError),
     #[error("Could not read field '{0}' as a string")]
     CouldNotReadStringField(String),
     #[error(transparent)]
     DateParsingError(#[from] chrono::ParseError),
-    #[error(transparent)]
-    DieselError(#[from] diesel::result::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error("Cannot parse path segments from torrent URL")]
@@ -25,6 +21,8 @@ pub enum Error {
     ReleaseDirectoryNotObtained,
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    SqlxError(#[from] sqlx::Error),
     #[error(transparent)]
     TemplateError(#[from] indicatif::style::TemplateError),
     #[error("Cannot retrieve torrent files")]

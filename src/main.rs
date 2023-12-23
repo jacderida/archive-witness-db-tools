@@ -1,5 +1,5 @@
 use archive_witness_db_builder::cumulus::read_cumulus_photo_export;
-use archive_witness_db_builder::releases::{download_torrents, import_releases};
+use archive_witness_db_builder::releases::*;
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
 use std::path::PathBuf;
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[clap(name = "db-builder", version = env!("CARGO_PKG_VERSION"))]
 struct Opt {
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand, Debug)]
@@ -22,14 +22,33 @@ enum Commands {
         #[arg(long)]
         path: PathBuf,
     },
+    #[clap(subcommand)]
+    Images(ImagesSubcommands),
+    #[clap(subcommand)]
+    Releases(ReleasesSubcommands),
+}
+
+/// Manage releases
+#[derive(Subcommand, Debug)]
+enum ReleasesSubcommands {
+    /// Import the 911datasets.org releases.
+    #[clap(name = "import")]
+    Import {
+        /// Path to the torrent directory
+        #[arg(long)]
+        torrent_path: PathBuf,
+    },
+    /// List all releases
+    #[clap(name = "ls")]
+    Ls {},
+}
+
+/// Manage images
+#[derive(Subcommand, Debug)]
+enum ImagesSubcommands {
     /// Import image content from a release.
-    ///
-    /// Saves the image content from a release in the database.
-    ///
-    /// If the image is found in NIST's Cumulus export, the metadata from there will be applied to
-    /// it.
-    #[clap(name = "import-image-content")]
-    ImportImageContent {
+    #[clap(name = "import")]
+    Import {
         /// Path to the Cumulus data dump file
         #[arg(long)]
         cumulus_export_path: PathBuf,
@@ -37,16 +56,6 @@ enum Commands {
         #[arg(long)]
         release_id: u16,
         /// Path to the torrent file corresponding to the release
-        #[arg(long)]
-        torrent_path: PathBuf,
-    },
-    /// Import the 911datasets.org releases.
-    ///
-    /// The binary contains some static data to initialise the releases, but we also use the
-    /// torrent files for some additional information.
-    #[clap(name = "import-releases")]
-    ImportReleases {
-        /// Path to the torrent directory
         #[arg(long)]
         torrent_path: PathBuf,
     },
@@ -58,23 +67,30 @@ async fn main() -> Result<()> {
 
     let opt = Opt::parse();
     match opt.command {
-        Some(Commands::DownloadTorrents { path }) => {
+        Commands::DownloadTorrents { path } => {
             download_torrents(&path).await?;
             Ok(())
         }
-        Some(Commands::ImportImageContent {
-            cumulus_export_path,
-            release_id,
-            torrent_path,
-        }) => {
-            let images = read_cumulus_photo_export(cumulus_export_path)?;
-            println!("Retrieved {} images from the Cumulus export", images.len());
-            Ok(())
-        }
-        Some(Commands::ImportReleases { torrent_path }) => {
-            import_releases(torrent_path)?;
-            Ok(())
-        }
-        None => Ok(()),
+        Commands::Releases(releases_command) => match releases_command {
+            ReleasesSubcommands::Import { torrent_path } => {
+                import_releases(torrent_path).await?;
+                Ok(())
+            }
+            ReleasesSubcommands::Ls {} => {
+                list_releases().await?;
+                Ok(())
+            }
+        },
+        Commands::Images(images_command) => match images_command {
+            ImagesSubcommands::Import {
+                cumulus_export_path,
+                release_id,
+                torrent_path,
+            } => {
+                let images = read_cumulus_photo_export(cumulus_export_path)?;
+                println!("Retrieved {} images from the Cumulus export", images.len());
+                Ok(())
+            }
+        },
     }
 }
