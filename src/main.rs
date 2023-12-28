@@ -1,5 +1,14 @@
-use archive_witness_db_builder::cumulus::read_cumulus_photo_export;
-use archive_witness_db_builder::releases::*;
+pub mod cumulus;
+pub mod db;
+pub mod error;
+pub mod images;
+pub mod models;
+pub mod releases;
+pub mod static_data;
+
+use crate::cumulus::read_cumulus_photo_export;
+use crate::images::*;
+use crate::releases::*;
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
 use std::path::PathBuf;
@@ -28,21 +37,6 @@ enum Commands {
     Releases(ReleasesSubcommands),
 }
 
-/// Manage releases
-#[derive(Subcommand, Debug)]
-enum ReleasesSubcommands {
-    /// Import the 911datasets.org releases.
-    #[clap(name = "import")]
-    Import {
-        /// Path to the torrent directory
-        #[arg(long)]
-        torrent_path: PathBuf,
-    },
-    /// List all releases
-    #[clap(name = "ls")]
-    Ls {},
-}
-
 /// Manage images
 #[derive(Subcommand, Debug)]
 enum ImagesSubcommands {
@@ -55,10 +49,28 @@ enum ImagesSubcommands {
         /// The ID of the release
         #[arg(long)]
         release_id: u16,
+        /// Path to the base 911datasets.org directory
+        #[arg(long)]
+        releases_base_path: PathBuf,
         /// Path to the torrent file corresponding to the release
         #[arg(long)]
         torrent_path: PathBuf,
     },
+}
+
+/// Manage releases
+#[derive(Subcommand, Debug)]
+enum ReleasesSubcommands {
+    /// Initialise the 911datasets.org releases.
+    #[clap(name = "init")]
+    Init {
+        /// Path to the torrent directory
+        #[arg(long)]
+        torrent_path: PathBuf,
+    },
+    /// List all releases
+    #[clap(name = "ls")]
+    Ls {},
 }
 
 #[tokio::main]
@@ -71,24 +83,32 @@ async fn main() -> Result<()> {
             download_torrents(&path).await?;
             Ok(())
         }
-        Commands::Releases(releases_command) => match releases_command {
-            ReleasesSubcommands::Import { torrent_path } => {
-                import_releases(torrent_path).await?;
-                Ok(())
-            }
-            ReleasesSubcommands::Ls {} => {
-                list_releases().await?;
-                Ok(())
-            }
-        },
         Commands::Images(images_command) => match images_command {
             ImagesSubcommands::Import {
                 cumulus_export_path,
                 release_id,
+                releases_base_path,
                 torrent_path,
             } => {
                 let images = read_cumulus_photo_export(cumulus_export_path)?;
                 println!("Retrieved {} images from the Cumulus export", images.len());
+                import_images(
+                    release_id as i32,
+                    images,
+                    &releases_base_path,
+                    &torrent_path,
+                )
+                .await?;
+                Ok(())
+            }
+        },
+        Commands::Releases(releases_command) => match releases_command {
+            ReleasesSubcommands::Init { torrent_path } => {
+                init_releases(torrent_path).await?;
+                Ok(())
+            }
+            ReleasesSubcommands::Ls {} => {
+                list_releases().await?;
                 Ok(())
             }
         },

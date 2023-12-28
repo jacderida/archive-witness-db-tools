@@ -15,6 +15,8 @@ pub enum Error {
     DateParsingError(#[from] chrono::ParseError),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    LavaTorrent(#[from] lava_torrent::LavaTorrentError),
     #[error("Cannot parse path segments from torrent URL")]
     PathSegmentsParseError,
     #[error("The top level directory for the release could not be obtained")]

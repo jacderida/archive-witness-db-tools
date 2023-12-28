@@ -1,7 +1,7 @@
-use crate::error::{Error, Result};
 use crate::models::Release;
 use crate::static_data::RELEASE_DATA;
 use chrono::NaiveDate;
+use color_eyre::{eyre::eyre, Result};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lava_torrent::torrent::v1::Torrent;
 use std::path::PathBuf;
@@ -56,7 +56,7 @@ pub async fn download_torrents(target_path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub async fn import_releases(torrents_path: PathBuf) -> Result<()> {
+pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
     for item in RELEASE_DATA.iter() {
         let date = item.0.to_string();
         let torrent_url = item.1.to_string();
@@ -74,7 +74,9 @@ pub async fn import_releases(torrents_path: PathBuf) -> Result<()> {
         let (directory, file_count, size) = if let Some(path) = torrent_path {
             match Torrent::read_from_file(path.clone()) {
                 Ok(torrent) => {
-                    let files = torrent.files.ok_or_else(|| Error::TorrentFilesError)?;
+                    let files = torrent
+                        .files
+                        .ok_or_else(|| eyre!("Could not obtain torrent files"))?;
                     let first_file = &files[0];
                     // We want to store the directory below '911datasets.org'.
                     let directory: String = {
@@ -87,7 +89,7 @@ pub async fn import_releases(torrents_path: PathBuf) -> Result<()> {
                         }
                         second_to_last
                             .map(|p| p.to_path_buf())
-                            .ok_or_else(|| Error::ReleaseDirectoryNotObtained)?
+                            .ok_or_else(|| eyre!("Could not obtain release directory"))?
                             .to_string_lossy()
                             .to_string()
                     };
@@ -119,21 +121,24 @@ pub async fn import_releases(torrents_path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+pub fn get_torrent_tree(torrent_path: &PathBuf) -> Result<Vec<(PathBuf, u64)>> {
+    let torrent = Torrent::read_from_file(torrent_path.clone())?;
+    let files = torrent
+        .files
+        .ok_or_else(|| eyre!("Failed to obtain torrent files"))?;
+    let tree = files
+        .iter()
+        .map(|f| (f.path.clone(), f.length as u64))
+        .collect::<Vec<(PathBuf, u64)>>();
+    Ok(tree)
+}
+
 pub async fn list_releases() -> Result<()> {
     let releases = crate::db::get_releases().await?;
     for release in releases.iter() {
         println!("{}: {}", release.id, release.name);
     }
     Ok(())
-}
-
-fn get_file_name_from_url(url: &Url) -> Result<String> {
-    let file_name = url
-        .path_segments()
-        .ok_or(Error::PathSegmentsParseError)?
-        .last()
-        .ok_or(Error::PathSegmentsParseError)?;
-    Ok(file_name.to_string())
 }
 
 pub async fn download_file(url: &Url, target_path: &PathBuf, file_pb: &ProgressBar) -> Result<()> {
@@ -150,10 +155,13 @@ pub async fn download_file(url: &Url, target_path: &PathBuf, file_pb: &ProgressB
 
     let mut response = request_builder.send().await?;
     if response.status() == 404 {
-        return Err(Error::ArchiveFileNotFoundError(url.to_string()));
+        return Err(eyre!("File not found at {}", url.to_string()));
     }
     if !response.status().is_success() {
-        return Err(Error::ArchiveDownloadFailed(response.status().into()));
+        return Err(eyre!(
+            "Failed to download file: {} response",
+            response.status()
+        ));
     }
 
     if let Some(len) = response.content_length() {
@@ -175,4 +183,13 @@ pub async fn download_file(url: &Url, target_path: &PathBuf, file_pb: &ProgressB
     tokio::fs::rename(&tmp_path, target_path).await?;
 
     Ok(())
+}
+
+fn get_file_name_from_url(url: &Url) -> Result<String> {
+    let file_name = url
+        .path_segments()
+        .ok_or(eyre!("Failed to parse path segments"))?
+        .last()
+        .ok_or(eyre!("Failed to parse path segments"))?;
+    Ok(file_name.to_string())
 }

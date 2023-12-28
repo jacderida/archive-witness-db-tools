@@ -17,6 +17,7 @@ image = "0.24.7"
 indicatif = "0.17.6"
 lava_torrent = "0.11"
 lazy_static = "~1.4"
+magick_rust = "0.19.1"
 maplit = "1.0.2"
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 sha-1 = "0.9"
