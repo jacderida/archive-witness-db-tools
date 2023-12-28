@@ -11,6 +11,7 @@ use crate::images::*;
 use crate::releases::*;
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -71,6 +72,13 @@ enum ReleasesSubcommands {
     /// List all releases
     #[clap(name = "ls")]
     Ls {},
+    /// List all the file extensions in the release
+    #[clap(name = "ls-extensions")]
+    LsExtensions {
+        /// Path to the torrent file for the release
+        #[arg(long)]
+        torrent_path: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -109,6 +117,20 @@ async fn main() -> Result<()> {
             }
             ReleasesSubcommands::Ls {} => {
                 list_releases().await?;
+                Ok(())
+            }
+            ReleasesSubcommands::LsExtensions { torrent_path } => {
+                let tree = get_torrent_tree(&torrent_path)?;
+                let mut extension_counts = HashMap::new();
+                for (path, _) in tree {
+                    if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                        let ext_lower = ext.to_lowercase();
+                        *extension_counts.entry(ext_lower).or_insert(0) += 1;
+                    }
+                }
+                for (ext, count) in extension_counts {
+                    println!("{}: {}", ext, count);
+                }
                 Ok(())
             }
         },
