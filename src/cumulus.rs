@@ -204,6 +204,16 @@ where
     Ok(images)
 }
 
+pub fn get_fields<P>(file_path: P) -> Result<Vec<String>>
+where
+    P: AsRef<Path>,
+{
+    let mut file = File::open(file_path)?;
+    file.seek(SeekFrom::Start(0))?;
+    let header = read_header(&mut file)?;
+    Ok(header.field_names.clone())
+}
+
 fn read_header(file: &mut File) -> Result<Header> {
     let mut buffer = [0; 1];
     let mut current_section = Vec::new();
@@ -232,7 +242,6 @@ fn read_header(file: &mut File) -> Result<Header> {
     while let Ok(1) = file.read(&mut buffer) {
         if buffer[0] == 0x0D {
             if reading_section_name {
-                println!("Read section name: {section_name}");
                 reading_section_name = false;
                 if section_name == "%Data" {
                     break;
