@@ -1,11 +1,11 @@
-use crate::error::{Error, Result};
 use crate::static_data::FIELD_NAME_TYPE_MAP;
 use chrono::NaiveDateTime;
+use color_eyre::{eyre::eyre, Result};
 use encoding_rs::*;
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use uuid::Uuid;
 
@@ -15,15 +15,24 @@ pub struct Header {
     pub field_uids: Vec<Uuid>,
 }
 
+#[derive(Clone, Debug)]
 pub struct RawAsset {
     pub fields: Vec<(String, String)>,
     pub tags: Vec<String>,
 }
 
+impl RawAsset {
+    pub fn print(&self) {
+        println!("{} fields", self.fields.len());
+        for (name, value) in self.fields.iter() {
+            println!("{name}: {value}");
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CumulusImage {
     pub id: String,
-    pub album: Option<String>,
     pub caption: Option<String>,
     pub date_recorded: Option<NaiveDateTime>,
     pub file_size: u64,
@@ -38,6 +47,36 @@ pub struct CumulusImage {
 }
 
 impl CumulusImage {
+    fn to_csv_row(&self) -> String {
+        // The fields with enclosing quotes can have commas in them or can span multiple lines.
+        // For larger fields, like notes, those can have quote characters, so they need to be
+        // enclosed again in quotes.
+        format!(
+            "\"{}\",{},\"{}\",{},{},{},{},{},\"{}\",\"{}\",{}",
+            self.name.clone().replace("\"", "\"\""),
+            self.photographers.join(";"),
+            self.shot_from
+                .clone()
+                .unwrap_or_default()
+                .replace("\"", "\"\""),
+            self.date_recorded.map_or(String::new(), |d| d.to_string()),
+            self.file_size,
+            self.horizontal_pixels
+                .map_or(String::new(), |p| p.to_string()),
+            self.vertical_pixels
+                .map_or(String::new(), |p| p.to_string()),
+            self.received_from.clone().unwrap_or_default(),
+            self.caption
+                .clone()
+                .unwrap_or_default()
+                .replace("\"", "\"\""), // Encapsulate in quotes and escape existing quotes
+            self.notes.clone().unwrap_or_default().replace("\"", "\"\""),
+            self.tags.join(";"),
+        )
+    }
+}
+
+impl CumulusImage {
     pub fn generate_id(name: &str, file_size: u64) -> String {
         let mut hasher = Sha1::new();
         hasher.update(name.as_bytes());
@@ -49,13 +88,6 @@ impl CumulusImage {
 
 impl From<RawAsset> for CumulusImage {
     fn from(value: RawAsset) -> Self {
-        let album = value.fields.iter().find(|a| a.0 == "Album").and_then(|a| {
-            if a.1.is_empty() {
-                None
-            } else {
-                Some(a.1.clone())
-            }
-        });
         let caption = value
             .fields
             .iter()
@@ -156,7 +188,6 @@ impl From<RawAsset> for CumulusImage {
 
         CumulusImage {
             id: Self::generate_id(&name, file_size),
-            album,
             caption,
             date_recorded,
             file_size,
@@ -172,6 +203,19 @@ impl From<RawAsset> for CumulusImage {
     }
 }
 
+pub fn convert_to_csv<P>(cumulus_export_path: P, out_path: P) -> Result<()>
+where
+    P: AsRef<Path>,
+{
+    let images = read_cumulus_photo_export(cumulus_export_path)?;
+    let mut file = File::create(out_path)?;
+    writeln!(file, "name,photographers,shot_from,date_recorded,file_size,horizontal_pixels,vertical_pixels,received_from,caption,notes,tags")?;
+    for (_, image) in images {
+        writeln!(file, "{}", image.to_csv_row())?;
+    }
+    Ok(())
+}
+
 pub fn read_cumulus_photo_export<P>(file_path: P) -> Result<HashMap<String, CumulusImage>>
 where
     P: AsRef<Path>,
@@ -181,27 +225,55 @@ where
     let header = read_header(&mut file)?;
 
     let mut images = HashMap::new();
-    let mut count = 1;
     loop {
         match read_asset_data(&mut file, header.field_names.clone()) {
             Ok(asset) => {
-                let image = CumulusImage::from(asset);
+                let image = CumulusImage::from(asset.clone());
                 images.insert(image.id.clone(), image.clone());
-                println!("Read asset {count}");
-                count += 1;
             }
-            Err(err) => match err {
-                Error::Io(e) => {
-                    if e.kind() == std::io::ErrorKind::UnexpectedEof {
-                        break;
-                    }
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                    break;
                 }
-                _ => return Err(err),
-            },
+                return Err(err.into());
+            }
         }
     }
 
     Ok(images)
+}
+
+pub fn get_asset<P>(file_path: P, name: &str) -> Result<Vec<RawAsset>>
+where
+    P: AsRef<Path>,
+{
+    let mut file = File::open(file_path)?;
+    file.seek(SeekFrom::Start(0))?;
+    let header = read_header(&mut file)?;
+
+    let mut assets = Vec::new();
+    loop {
+        match read_asset_data(&mut file, header.field_names.clone()) {
+            Ok(asset) => {
+                let (_, value) = asset
+                    .fields
+                    .iter()
+                    .find(|a| a.0 == "Asset Name")
+                    .ok_or_else(|| eyre!("Could not obtain 'Asset Name' field"))?;
+                if value == name {
+                    assets.push(asset);
+                }
+            }
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                    break;
+                }
+                return Err(err.into());
+            }
+        }
+    }
+
+    Ok(assets)
 }
 
 pub fn get_fields<P>(file_path: P) -> Result<Vec<String>>
@@ -278,7 +350,7 @@ fn read_header(file: &mut File) -> Result<Header> {
     Ok(header)
 }
 
-fn read_asset_data(file: &mut File, field_names: Vec<String>) -> Result<RawAsset> {
+fn read_asset_data(file: &mut File, field_names: Vec<String>) -> std::io::Result<RawAsset> {
     let mut asset_fields = Vec::new();
     let mut asset_tags = Vec::new();
 
@@ -301,7 +373,10 @@ fn read_asset_data(file: &mut File, field_names: Vec<String>) -> Result<RawAsset
                             "String" => {
                                 let (field_value, _, had_errors) = WINDOWS_1252.decode(&field_data);
                                 if had_errors {
-                                    return Err(Error::CouldNotReadStringField(field_name));
+                                    return Err(std::io::Error::new(
+                                        std::io::ErrorKind::InvalidData,
+                                        format!("Could not read '{field_name}' field"),
+                                    ));
                                 }
                                 asset_fields.push((field_name, field_value.to_string()));
                             }

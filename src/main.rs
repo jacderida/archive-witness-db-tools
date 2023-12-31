@@ -53,6 +53,16 @@ enum CumulusSubcommands {
         #[arg(long)]
         second_cumulus_export_path: PathBuf,
     },
+    /// Retrieve an asset with a given name
+    #[clap(name = "get")]
+    Get {
+        /// Path to the Cumulus data dump file
+        #[arg(long)]
+        cumulus_export_path: PathBuf,
+        /// Name of the asset to retrieve
+        #[arg(long)]
+        name: String,
+    },
     /// List the fields in a Cumulus export
     #[clap(name = "ls-fields")]
     LsFields {
@@ -65,6 +75,16 @@ enum CumulusSubcommands {
 /// Manage images
 #[derive(Subcommand, Debug)]
 enum ImagesSubcommands {
+    /// Convert the Cumulus photo export to a CSV
+    #[clap(name = "convert")]
+    Convert {
+        /// Path to the Cumulus data dump file
+        #[arg(long)]
+        cumulus_export_path: PathBuf,
+        /// Path to the output CSV file
+        #[arg(long)]
+        out_path: PathBuf,
+    },
     /// Import image content from a release.
     #[clap(name = "import")]
     Import {
@@ -116,6 +136,21 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Commands::Cumulus(cumulus_command) => match cumulus_command {
+            CumulusSubcommands::Get {
+                cumulus_export_path,
+                name,
+            } => {
+                println!("Searching for assets named {name}...");
+                let assets = get_asset(cumulus_export_path, &name)?;
+                if assets.is_empty() {
+                    println!("Not assets found");
+                    return Ok(());
+                }
+                for asset in assets.iter() {
+                    asset.print();
+                }
+                Ok(())
+            }
             CumulusSubcommands::DiffFields {
                 first_cumulus_export_path,
                 second_cumulus_export_path,
@@ -140,6 +175,19 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Images(images_command) => match images_command {
+            ImagesSubcommands::Convert {
+                cumulus_export_path,
+                out_path,
+            } => {
+                println!(
+                    "Converting {} to {}",
+                    cumulus_export_path.to_string_lossy(),
+                    out_path.to_string_lossy()
+                );
+                println!("This can take 30 to 60 seconds...");
+                convert_to_csv(cumulus_export_path, out_path)?;
+                Ok(())
+            }
             ImagesSubcommands::Import {
                 cumulus_export_path,
                 release_id,

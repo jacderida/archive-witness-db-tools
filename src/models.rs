@@ -56,7 +56,6 @@ pub struct Tag {
 
 pub struct Image {
     pub id: i32,
-    pub album: Option<String>,
     pub caption: Option<String>,
     pub date_recorded: Option<NaiveDateTime>,
     pub file_metadata: String,
@@ -86,7 +85,6 @@ impl Image {
             file_size,
             horizontal_pixels,
             vertical_pixels,
-            album: None,
             caption: None,
             date_recorded: None,
             notes: None,
@@ -116,7 +114,6 @@ impl Image {
         let (width, height) = Self::get_image_dimensions(path)?;
         Ok(Image {
             id: 0,
-            album: cumulus_image.album,
             caption: cumulus_image.caption,
             date_recorded: cumulus_image.date_recorded,
             file_metadata: Self::get_file_metadata(path)?,

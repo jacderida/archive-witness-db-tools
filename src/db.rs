@@ -39,11 +39,10 @@ pub async fn save_image(content: Content, image: Image) -> Result<Image> {
     .id;
 
     sqlx::query!(
-        r#"INSERT INTO images (id, album, caption, date_recorded, file_metadata, file_size,
+        r#"INSERT INTO images (id, caption, date_recorded, file_metadata, file_size,
         horizontal_pixels, name, notes, received_from, shot_from, vertical_pixels)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)"#,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"#,
         content_id,
-        image.album,
         image.caption,
         image.date_recorded,
         image.file_metadata,
@@ -60,7 +59,6 @@ pub async fn save_image(content: Content, image: Image) -> Result<Image> {
 
     let mut new_image = Image {
         id: content_id,
-        album: image.album,
         caption: image.caption,
         date_recorded: image.date_recorded,
         file_metadata: image.file_metadata,
