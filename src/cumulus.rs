@@ -30,6 +30,10 @@ impl RawAsset {
     }
 }
 
+pub trait Identifiable {
+    fn id(&self) -> String;
+}
+
 #[derive(Clone, Debug)]
 pub struct CumulusImage {
     pub id: String,
@@ -44,6 +48,12 @@ pub struct CumulusImage {
     pub shot_from: Option<String>,
     pub tags: Vec<String>,
     pub vertical_pixels: Option<u16>,
+}
+
+impl Identifiable for CumulusImage {
+    fn id(&self) -> String {
+        self.id.clone()
+    }
 }
 
 impl CumulusImage {
@@ -73,16 +83,6 @@ impl CumulusImage {
             self.notes.clone().unwrap_or_default().replace("\"", "\"\""),
             self.tags.join(";"),
         )
-    }
-}
-
-impl CumulusImage {
-    pub fn generate_id(name: &str, file_size: u64) -> String {
-        let mut hasher = Sha1::new();
-        hasher.update(name.as_bytes());
-        hasher.update(file_size.to_be_bytes());
-        let hash = hasher.finalize();
-        format!("{:x}", hash)
     }
 }
 
@@ -187,7 +187,7 @@ impl From<RawAsset> for CumulusImage {
             });
 
         CumulusImage {
-            id: Self::generate_id(&name, file_size),
+            id: generate_asset_id(&name, file_size),
             caption,
             date_recorded,
             file_size,
@@ -203,11 +203,186 @@ impl From<RawAsset> for CumulusImage {
     }
 }
 
-pub fn convert_to_csv<P>(cumulus_export_path: P, out_path: P) -> Result<()>
+#[derive(Clone, Debug)]
+pub struct CumulusVideo {
+    pub id: String,
+    pub caption: Option<String>,
+    pub date_recorded: Option<NaiveDateTime>,
+    pub duration: Option<String>,
+    pub file_size: u64,
+    pub horizontal_pixels: Option<u16>,
+    pub name: String,
+    pub notes: Option<String>,
+    pub videographers: Vec<String>,
+    pub shot_from: Option<String>,
+    pub tags: Vec<String>,
+    pub vertical_pixels: Option<u16>,
+}
+
+impl Identifiable for CumulusVideo {
+    fn id(&self) -> String {
+        self.id.clone()
+    }
+}
+
+impl From<RawAsset> for CumulusVideo {
+    fn from(value: RawAsset) -> Self {
+        let caption = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Caption")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    Some(a.1.clone())
+                }
+            });
+        let date_recorded = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Date Recorded")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    NaiveDateTime::parse_from_str(&a.1, "%Y-%m-%d %H:%M:%S").ok()
+                }
+            });
+        let duration = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Duration")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    Some(a.1.clone())
+                }
+            });
+        let file_size = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "File Data Size")
+            .map(|a| {
+                let f: u64 = a.1.parse().unwrap_or(0);
+                f
+            })
+            .unwrap();
+        let horizontal_pixels = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Horizontal Pixels")
+            .map(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    let h: u16 = a.1.parse().unwrap();
+                    Some(h)
+                }
+            })
+            .unwrap();
+        let name = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Asset Name")
+            .map(|a| a.1.clone())
+            .unwrap();
+        let notes = value.fields.iter().find(|a| a.0 == "Notes").and_then(|a| {
+            if a.1.is_empty() {
+                None
+            } else {
+                Some(a.1.clone())
+            }
+        });
+        let videographers: Vec<String> = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Photographer")
+            .map(|a| a.1.split(',').map(|s| s.trim().to_string()).collect())
+            .unwrap_or_default();
+        let shot_from = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Shot From")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    Some(a.1.clone())
+                }
+            });
+        let vertical_pixels = value
+            .fields
+            .iter()
+            .find(|a| a.0 == "Vertical Pixels")
+            .and_then(|a| {
+                if a.1.is_empty() {
+                    None
+                } else {
+                    let v: u16 = a.1.parse().unwrap();
+                    Some(v)
+                }
+            });
+
+        CumulusVideo {
+            id: generate_asset_id(&name, file_size),
+            caption,
+            date_recorded,
+            duration,
+            file_size,
+            horizontal_pixels,
+            name,
+            notes,
+            videographers,
+            shot_from,
+            tags: value.tags.clone(),
+            vertical_pixels,
+        }
+    }
+}
+
+impl CumulusVideo {
+    fn to_csv_row(&self) -> String {
+        // The fields with enclosing quotes can have commas in them or can span multiple lines.
+        // For larger fields, like notes, those can have quote characters, so they need to be
+        // enclosed again in quotes.
+        format!(
+            "\"{}\",{},\"{}\",{},{},{},{},{},\"{}\",{}",
+            self.name.clone().replace("\"", "\"\""),
+            self.videographers.join(";"),
+            self.shot_from
+                .clone()
+                .unwrap_or_default()
+                .replace("\"", "\"\""),
+            self.duration
+                .clone()
+                .map_or(String::new(), |d| d.to_string()),
+            self.date_recorded.map_or(String::new(), |d| d.to_string()),
+            self.file_size,
+            self.horizontal_pixels
+                .map_or(String::new(), |p| p.to_string()),
+            self.vertical_pixels
+                .map_or(String::new(), |p| p.to_string()),
+            self.notes.clone().unwrap_or_default().replace("\"", "\"\""),
+            self.tags.join(";"),
+        )
+    }
+}
+
+pub fn generate_asset_id(name: &str, file_size: u64) -> String {
+    let mut hasher = Sha1::new();
+    hasher.update(name.as_bytes());
+    hasher.update(file_size.to_be_bytes());
+    let hash = hasher.finalize();
+    format!("{:x}", hash)
+}
+
+pub fn convert_images_to_csv<P>(cumulus_export_path: P, out_path: P) -> Result<()>
 where
     P: AsRef<Path>,
 {
-    let images = read_cumulus_photo_export(cumulus_export_path)?;
+    let images = read_cumulus_export::<_, CumulusImage>(cumulus_export_path)?;
     let mut file = File::create(out_path)?;
     writeln!(file, "name,photographers,shot_from,date_recorded,file_size,horizontal_pixels,vertical_pixels,received_from,caption,notes,tags")?;
     for (_, image) in images {
@@ -216,20 +391,34 @@ where
     Ok(())
 }
 
-pub fn read_cumulus_photo_export<P>(file_path: P) -> Result<HashMap<String, CumulusImage>>
+pub fn convert_videos_to_csv<P>(cumulus_export_path: P, out_path: P) -> Result<()>
 where
     P: AsRef<Path>,
+{
+    let videos = read_cumulus_export::<_, CumulusVideo>(cumulus_export_path)?;
+    let mut file = File::create(out_path)?;
+    writeln!(file, "name,videographers,shot_from,duration,date_recorded,file_size,horizontal_pixels,vertical_pixels,notes,tags")?;
+    for (_, video) in videos {
+        writeln!(file, "{}", video.to_csv_row())?;
+    }
+    Ok(())
+}
+
+pub fn read_cumulus_export<P, T>(file_path: P) -> Result<HashMap<String, T>>
+where
+    P: AsRef<Path>,
+    T: From<RawAsset> + Identifiable + Clone,
 {
     let mut file = File::open(file_path)?;
     file.seek(SeekFrom::Start(0))?;
     let header = read_header(&mut file)?;
 
-    let mut images = HashMap::new();
+    let mut items = HashMap::new();
     loop {
         match read_asset_data(&mut file, header.field_names.clone()) {
             Ok(asset) => {
-                let image = CumulusImage::from(asset.clone());
-                images.insert(image.id.clone(), image.clone());
+                let item = T::from(asset.clone());
+                items.insert(item.id().clone(), item.clone());
             }
             Err(err) => {
                 if err.kind() == std::io::ErrorKind::UnexpectedEof {
@@ -240,7 +429,7 @@ where
         }
     }
 
-    Ok(images)
+    Ok(items)
 }
 
 pub fn get_asset<P>(file_path: P, name: &str) -> Result<Vec<RawAsset>>
@@ -285,6 +474,10 @@ where
     let header = read_header(&mut file)?;
     Ok(header.field_names.clone())
 }
+
+///
+/// Private Helpers
+///
 
 fn read_header(file: &mut File) -> Result<Header> {
     let mut buffer = [0; 1];

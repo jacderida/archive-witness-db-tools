@@ -38,6 +38,8 @@ enum Commands {
     Images(ImagesSubcommands),
     #[clap(subcommand)]
     Releases(ReleasesSubcommands),
+    #[clap(subcommand)]
+    Videos(VideosSubcommands),
 }
 
 /// Tools for working with the Cumulus exports
@@ -125,6 +127,21 @@ enum ReleasesSubcommands {
     },
 }
 
+/// Manage videos
+#[derive(Subcommand, Debug)]
+enum VideosSubcommands {
+    /// Convert the Cumulus photo export to a CSV
+    #[clap(name = "convert")]
+    Convert {
+        /// Path to the Cumulus data dump file
+        #[arg(long)]
+        cumulus_export_path: PathBuf,
+        /// Path to the output CSV file
+        #[arg(long)]
+        out_path: PathBuf,
+    },
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
@@ -185,7 +202,7 @@ async fn main() -> Result<()> {
                     out_path.to_string_lossy()
                 );
                 println!("This can take 30 to 60 seconds...");
-                convert_to_csv(cumulus_export_path, out_path)?;
+                convert_images_to_csv(cumulus_export_path, out_path)?;
                 Ok(())
             }
             ImagesSubcommands::Import {
@@ -194,7 +211,7 @@ async fn main() -> Result<()> {
                 releases_base_path,
                 torrent_path,
             } => {
-                let images = read_cumulus_photo_export(cumulus_export_path)?;
+                let images = read_cumulus_export::<_, CumulusImage>(cumulus_export_path)?;
                 println!("Retrieved {} images from the Cumulus export", images.len());
                 import_images(
                     release_id as i32,
@@ -227,6 +244,21 @@ async fn main() -> Result<()> {
                 for (ext, count) in extension_counts {
                     println!("{}: {}", ext, count);
                 }
+                Ok(())
+            }
+        },
+        Commands::Videos(videos_command) => match videos_command {
+            VideosSubcommands::Convert {
+                cumulus_export_path,
+                out_path,
+            } => {
+                println!(
+                    "Converting {} to {}",
+                    cumulus_export_path.to_string_lossy(),
+                    out_path.to_string_lossy()
+                );
+                println!("This can take 30 to 60 seconds...");
+                convert_videos_to_csv(cumulus_export_path, out_path)?;
                 Ok(())
             }
         },

@@ -103,7 +103,7 @@ lazy_static! {
         "Horizontal Resolution" => "String",
         "Color Mode" => "String",
         "File Format" => "String",
-        "Falling Structural Objects" => "String",
+        "Falling Structural Objects" => "Tag",
         "Notes" => "String",
         "Thumbnail" => "Binary",
         // Unsure about this
@@ -118,6 +118,18 @@ lazy_static! {
         "Record Modification Date" => "String",
         "Record Creation Date" => "String",
         "Record Name" => "String",
+        "Windows Opened" => "Tag",
+        "Helicopters" => "Tag",
+        "Major Fire Change" => "Tag",
+        "Major Smoke Change" => "Tag",
+        "Duration" => "String",
+        "Final Date Recorded" => "String",
+        "Content" => "String",
+        "Fixed Camera" => "Tag",
+        "Aircraft" => "Tag",
+        "Major Change" => "Tag",
+        "End Recording" => "Tag",
+        "Falling Objects" => "Tag",
     };
     pub static ref RELEASE_DATA: Vec<(&'static str, &'static str, &'static str, &'static str)> = vec![
         (

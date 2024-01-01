@@ -1,4 +1,4 @@
-use crate::cumulus::CumulusImage;
+use crate::cumulus::{generate_asset_id, CumulusImage};
 use crate::models::{Content, ContentType, Image};
 use crate::releases::get_torrent_tree;
 use color_eyre::{eyre::eyre, Result};
@@ -18,7 +18,7 @@ pub async fn import_images(
             .file_name()
             .ok_or_else(|| eyre!("Unable to obtain file name"))?
             .to_string_lossy();
-        let id = CumulusImage::generate_id(&file_name, size);
+        let id = generate_asset_id(&file_name, size);
 
         let content = Content {
             id: 0,
