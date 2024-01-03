@@ -7,6 +7,7 @@ pub mod releases;
 pub mod static_data;
 
 use crate::cumulus::*;
+use crate::db::*;
 use crate::images::*;
 use crate::releases::*;
 use clap::{Parser, Subcommand};
@@ -23,6 +24,8 @@ struct Opt {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    #[clap(subcommand)]
+    AccessDb(AccessDbSubcommands),
     /// Download all the 911datasets.org torrent files.
     ///
     /// The URLs are encoded in the binary.
@@ -40,6 +43,27 @@ enum Commands {
     Releases(ReleasesSubcommands),
     #[clap(subcommand)]
     Videos(VideosSubcommands),
+}
+
+/// Tools for importing NIST's Access database
+///
+/// External tools must be used to export the database tables to CSV.
+#[derive(Subcommand, Debug)]
+enum AccessDbSubcommands {
+    /// Import a CSV export of the NIST Tapes table from their Access database
+    #[clap(name = "import-tapes")]
+    ImportTapes {
+        /// Path to the CSV export
+        #[arg(long)]
+        path: PathBuf,
+    },
+    /// Import a CSV export of the NIST Videos table from their Access database
+    #[clap(name = "import-videos")]
+    ImportVideos {
+        /// Path to the CSV export
+        #[arg(long)]
+        path: PathBuf,
+    },
 }
 
 /// Tools for working with the Cumulus exports
@@ -105,10 +129,10 @@ enum ImagesSubcommands {
     },
 }
 
-/// Manage releases
+/// Manage 911datasets.org releases
 #[derive(Subcommand, Debug)]
 enum ReleasesSubcommands {
-    /// Initialise the 911datasets.org releases.
+    /// Initialise the 911datasets.org releases
     #[clap(name = "init")]
     Init {
         /// Path to the torrent directory
@@ -118,7 +142,7 @@ enum ReleasesSubcommands {
     /// List all releases
     #[clap(name = "ls")]
     Ls {},
-    /// List all the file extensions in the release
+    /// List all the file extensions in a release
     #[clap(name = "ls-extensions")]
     LsExtensions {
         /// Path to the torrent file for the release
@@ -130,7 +154,7 @@ enum ReleasesSubcommands {
 /// Manage videos
 #[derive(Subcommand, Debug)]
 enum VideosSubcommands {
-    /// Convert the Cumulus photo export to a CSV
+    /// Convert the Cumulus video export to a CSV
     #[clap(name = "convert")]
     Convert {
         /// Path to the Cumulus data dump file
@@ -148,6 +172,20 @@ async fn main() -> Result<()> {
 
     let opt = Opt::parse();
     match opt.command {
+        Commands::AccessDb(access_command) => match access_command {
+            AccessDbSubcommands::ImportTapes { path } => {
+                print!("Importing the Tapes table from the NIST database...");
+                import_nist_tapes_table_from_csv(path).await?;
+                print!("done");
+                Ok(())
+            }
+            AccessDbSubcommands::ImportVideos { path } => {
+                print!("Importing the Videos table from the NIST database...");
+                import_nist_video_table_from_csv(path).await?;
+                print!("done");
+                Ok(())
+            }
+        },
         Commands::DownloadTorrents { path } => {
             download_torrents(&path).await?;
             Ok(())

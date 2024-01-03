@@ -6,6 +6,7 @@ use magick_rust::{magick_wand_genesis, MagickWand};
 use sqlx::FromRow;
 use std::path::PathBuf;
 use std::process::Command;
+use thiserror::Error;
 
 #[derive(FromRow)]
 pub struct Release {
@@ -200,5 +201,117 @@ impl TryFrom<PathBuf> for Image {
             height as i16,
         );
         Ok(image)
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum ConversionError {
+    #[error(transparent)]
+    DateParsingError(#[from] chrono::ParseError),
+    #[error("The source list must have {0} elements")]
+    InvalidLength(u16),
+    #[error(transparent)]
+    ParseError(#[from] std::num::ParseIntError),
+}
+
+#[derive(sqlx::FromRow)]
+pub struct NistVideo {
+    pub video_id: i32,
+    pub video_title: String,
+    pub network: String,
+    pub broadcast_date: Option<NaiveDate>,
+    pub duration_min: i32,
+    pub subject: Option<String>,
+    pub notes: Option<String>,
+}
+
+impl TryFrom<Vec<String>> for NistVideo {
+    type Error = ConversionError;
+
+    fn try_from(values: Vec<String>) -> std::result::Result<Self, Self::Error> {
+        if values.len() != 7 {
+            return Err(ConversionError::InvalidLength(7));
+        }
+
+        let video_id: i32 = values[0].parse()?;
+        let video_title = values[1].clone();
+        let network = values[2].clone();
+        let broadcast_date = if values[3].is_empty() {
+            None
+        } else {
+            let date = NaiveDate::parse_from_str(&values[3].clone(), "%m/%d/%y 00:00:00")?;
+            Some(date)
+        };
+        let duration_min: i32 = values[4].parse()?;
+        let subject = if values[5].is_empty() {
+            None
+        } else {
+            Some(values[5].clone())
+        };
+        let notes = if values[6].is_empty() {
+            None
+        } else {
+            Some(values[6].clone())
+        };
+        Ok(Self {
+            video_id,
+            video_title,
+            network,
+            broadcast_date,
+            duration_min,
+            subject,
+            notes,
+        })
+    }
+}
+
+#[derive(sqlx::FromRow)]
+pub struct NistTape {
+    pub tape_id: i32,
+    pub video_id: i32,
+    pub tape_name: String,
+    pub tape_source: String,
+    pub copy: i32,
+    pub derived_from: i32,
+    pub format: String,
+    pub duration_min: i32,
+    pub batch: bool,
+    pub clips: bool,
+    pub timecode: bool,
+}
+
+impl TryFrom<Vec<String>> for NistTape {
+    type Error = ConversionError;
+
+    fn try_from(value: Vec<String>) -> Result<Self, Self::Error> {
+        if value.len() != 11 {
+            return Err(ConversionError::InvalidLength(11));
+        }
+
+        let tape_id = value[0].parse()?;
+        let video_id = value[1].parse()?;
+        let tape_name = value[2].clone();
+        let tape_source = value[3].clone();
+        let copy = value[4].parse()?;
+        let derived_from = value[5].parse().unwrap_or(0);
+        let format = value[6].clone();
+        let duration_min = value[7].parse()?;
+        let batch = value[8].parse::<i32>()? != 0; // Assuming 0 for false, non-zero for true
+        let clips = value[9].parse::<i32>()? != 0;
+        let timecode = value[10].parse::<i32>()? != 0;
+
+        Ok(NistTape {
+            tape_id,
+            video_id,
+            tape_name,
+            tape_source,
+            copy,
+            derived_from,
+            format,
+            duration_min,
+            batch,
+            clips,
+            timecode,
+        })
     }
 }

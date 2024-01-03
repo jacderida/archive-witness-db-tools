@@ -1,9 +1,11 @@
 use crate::error::Result;
-use crate::models::{Content, Image, Photographer, Release, Tag};
+use crate::models::{Content, Image, NistTape, NistVideo, Photographer, Release, Tag};
+use csv::ReaderBuilder;
 use dotenvy::dotenv;
 use sqlx::pool::Pool;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Postgres;
+use std::path::PathBuf;
 
 pub async fn establish_connection() -> Result<Pool<Postgres>> {
     dotenv().ok();
@@ -21,6 +23,86 @@ pub async fn get_releases() -> Result<Vec<Release>> {
     .fetch_all(&pool)
     .await?;
     Ok(releases)
+}
+
+pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> color_eyre::Result<()> {
+    let pool = establish_connection().await?;
+    let mut tx = pool.begin().await?;
+
+    let mut rdr = ReaderBuilder::new().has_headers(true).from_path(csv_path)?;
+    for result in rdr.deserialize() {
+        let record: Vec<String> = result?;
+        let video = NistVideo::try_from(record).map_err(|e| color_eyre::eyre::eyre!(e))?;
+        sqlx::query_as!(
+            NistVideo,
+            r#"INSERT INTO nist_videos (
+                video_id, 
+                video_title, 
+                network, 
+                broadcast_date, 
+                duration_min, 
+                subject, 
+                notes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+            video.video_id,
+            video.video_title,
+            video.network,
+            video.broadcast_date,
+            video.duration_min,
+            video.subject,
+            video.notes,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> color_eyre::Result<()> {
+    let pool = establish_connection().await?;
+    let mut tx = pool.begin().await?;
+
+    let mut rdr = ReaderBuilder::new().has_headers(true).from_path(csv_path)?;
+    for result in rdr.deserialize() {
+        let record: Vec<String> = result?;
+        let tape = NistTape::try_from(record).map_err(|e| color_eyre::eyre::eyre!(e))?;
+        sqlx::query_as!(
+            NistTape,
+            r#"INSERT INTO nist_tapes (
+                tape_id, 
+                video_id, 
+                tape_name, 
+                tape_source, 
+                copy, 
+                derived_from, 
+                format, 
+                duration_min, 
+                batch, 
+                clips, 
+                timecode
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"#,
+            tape.tape_id,
+            tape.video_id,
+            tape.tape_name,
+            tape.tape_source,
+            tape.copy,
+            tape.derived_from,
+            tape.format,
+            tape.duration_min,
+            tape.batch,
+            tape.clips,
+            tape.timecode,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(())
 }
 
 pub async fn save_image(content: Content, image: Image) -> Result<Image> {

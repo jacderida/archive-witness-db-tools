@@ -12,6 +12,8 @@ pub enum Error {
     #[error("Could not read field '{0}' as a string")]
     CouldNotReadStringField(String),
     #[error(transparent)]
+    CsvError(#[from] csv::Error),
+    #[error(transparent)]
     DateParsingError(#[from] chrono::ParseError),
     #[error(transparent)]
     Io(#[from] std::io::Error),
