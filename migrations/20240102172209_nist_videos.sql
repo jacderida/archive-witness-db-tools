@@ -10,7 +10,7 @@ CREATE TABLE nist_videos (
 
 CREATE TABLE nist_tapes (
     tape_id INTEGER PRIMARY KEY,
-    video_id INTEGER REFERENCES nist_videos(video_id),
+    video_id INTEGER NOT NULL REFERENCES nist_videos(video_id),
     tape_name VARCHAR(120) NOT NULL,
     tape_source VARCHAR(50) NOT NULL,
     copy INTEGER NOT NULL,

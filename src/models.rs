@@ -218,7 +218,7 @@ pub enum ConversionError {
 pub struct NistVideo {
     pub video_id: i32,
     pub video_title: String,
-    pub network: String,
+    pub network: Option<String>,
     pub broadcast_date: Option<NaiveDate>,
     pub duration_min: i32,
     pub subject: Option<String>,
@@ -256,7 +256,7 @@ impl TryFrom<Vec<String>> for NistVideo {
         Ok(Self {
             video_id,
             video_title,
-            network,
+            network: Some(network),
             broadcast_date,
             duration_min,
             subject,
@@ -314,4 +314,16 @@ impl TryFrom<Vec<String>> for NistTape {
             timecode,
         })
     }
+}
+
+#[derive(sqlx::FromRow)]
+pub struct MasterVideo {
+    pub id: i32,
+    pub title: String,
+    pub date: Option<NaiveDate>,
+    pub description: Option<String>,
+    pub format: Option<String>,
+    pub network: Option<String>,
+    pub source: Option<String>,
+    pub notes: Option<String>,
 }

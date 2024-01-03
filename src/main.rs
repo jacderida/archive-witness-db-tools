@@ -9,9 +9,10 @@ pub mod static_data;
 use crate::cumulus::*;
 use crate::db::*;
 use crate::images::*;
+use crate::models::MasterVideo;
 use crate::releases::*;
 use clap::{Parser, Subcommand};
-use color_eyre::Result;
+use color_eyre::{eyre::eyre, Result};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
@@ -154,6 +155,9 @@ enum ReleasesSubcommands {
 /// Manage videos
 #[derive(Subcommand, Debug)]
 enum VideosSubcommands {
+    /// Build the master video list from the NIST video list
+    #[clap(name = "build-master")]
+    BuildMaster {},
     /// Convert the Cumulus video export to a CSV
     #[clap(name = "convert")]
     Convert {
@@ -286,6 +290,41 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Videos(videos_command) => match videos_command {
+            VideosSubcommands::BuildMaster {} => {
+                println!("Building master video list from the NIST videos and tapes list");
+                let videos = get_nist_videos().await?;
+                let tapes = get_nist_tapes().await?;
+                let mut master_videos = Vec::new();
+
+                for video in videos.iter() {
+                    // There could be many tapes that satisfy this criteria, but we have to pick
+                    // one, so we'll just take the first one returned. We will need to look at the
+                    // list manually to fix it up. This will be done as a separate process.
+                    let tape = tapes.iter().find(|t| t.derived_from == 0).ok_or_else(|| {
+                        eyre!(format!(
+                            "Could not retrieve tape for video with ID {}",
+                            video.video_id
+                        ))
+                    })?;
+                    let master_video = MasterVideo {
+                        id: 0,
+                        title: video.video_title.clone(),
+                        date: video.broadcast_date,
+                        description: None,
+                        format: Some(tape.format.clone()),
+                        network: video.network.clone(),
+                        source: Some(tape.tape_source.clone()),
+                        notes: video.notes.clone(),
+                    };
+                    master_videos.push(master_video);
+                }
+
+                print!("Saving master video list...");
+                save_master_video_list(master_videos).await?;
+                print!("done");
+
+                Ok(())
+            }
             VideosSubcommands::Convert {
                 cumulus_export_path,
                 out_path,

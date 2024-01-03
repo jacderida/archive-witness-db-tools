@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::models::{Content, Image, NistTape, NistVideo, Photographer, Release, Tag};
+use crate::models::{Content, Image, MasterVideo, NistTape, NistVideo, Photographer, Release, Tag};
 use csv::ReaderBuilder;
 use dotenvy::dotenv;
 use sqlx::pool::Pool;
@@ -23,6 +23,28 @@ pub async fn get_releases() -> Result<Vec<Release>> {
     .fetch_all(&pool)
     .await?;
     Ok(releases)
+}
+
+pub async fn get_nist_videos() -> Result<Vec<NistVideo>> {
+    let pool = establish_connection().await?;
+    let videos = sqlx::query_as!(
+        NistVideo,
+        "SELECT video_id, video_title, network, broadcast_date, duration_min, subject, notes FROM nist_videos"
+    )
+    .fetch_all(&pool)
+    .await?;
+    Ok(videos)
+}
+
+pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
+    let pool = establish_connection().await?;
+    let videos = sqlx::query_as!(
+        NistTape,
+        "SELECT tape_id, video_id, tape_name, tape_source, copy, derived_from, format, duration_min, batch, clips, timecode FROM nist_tapes"
+    )
+    .fetch_all(&pool)
+    .await?;
+    Ok(videos)
 }
 
 pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> color_eyre::Result<()> {
@@ -95,6 +117,39 @@ pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> color_eyre::
             tape.batch,
             tape.clips,
             tape.timecode,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn save_master_video_list(master_videos: Vec<MasterVideo>) -> Result<()> {
+    let pool = establish_connection().await?;
+    let mut tx = pool.begin().await?;
+
+    for video in master_videos.iter() {
+        sqlx::query_as!(
+            MasterVideo,
+            r#"INSERT INTO master_videos (
+                title, 
+                date, 
+                description, 
+                format, 
+                network, 
+                source, 
+                notes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
+            video.title,
+            video.date,
+            video.description,
+            video.format,
+            video.network,
+            video.source,
+            video.notes,
         )
         .execute(&mut *tx)
         .await?;
