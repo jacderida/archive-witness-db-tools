@@ -19,6 +19,8 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     LavaTorrent(#[from] lava_torrent::LavaTorrentError),
+    #[error("Release ID {0} does not have a torrent")]
+    NoTorrentForRelease(i32),
     #[error("Cannot parse path segments from torrent URL")]
     PathSegmentsParseError,
     #[error("The top level directory for the release could not be obtained")]

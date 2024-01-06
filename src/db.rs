@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::models::{Content, Image, MasterVideo, NistTape, NistVideo, Photographer, Release, Tag};
 use csv::ReaderBuilder;
 use dotenvy::dotenv;
@@ -45,6 +45,20 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
     .fetch_all(&pool)
     .await?;
     Ok(videos)
+}
+
+pub async fn get_torrent_content(release_id: i32) -> Result<Vec<u8>> {
+    let pool = establish_connection().await?;
+    let row = sqlx::query!(
+        "SELECT content FROM release_torrents WHERE release_id = $1",
+        release_id
+    )
+    .fetch_one(&pool)
+    .await?;
+    let content: Vec<u8> = row
+        .content
+        .ok_or_else(|| Error::NoTorrentForRelease(release_id))?;
+    Ok(content)
 }
 
 pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> color_eyre::Result<()> {
@@ -303,4 +317,16 @@ pub async fn save_release(release: Release) -> Result<Release> {
     .fetch_one(&pool)
     .await?;
     Ok(new_release)
+}
+
+pub async fn save_torrent(release_id: i32, torrent_path: &PathBuf) -> Result<()> {
+    let pool = establish_connection().await?;
+    let content = std::fs::read(torrent_path)?;
+    let query = sqlx::query!(
+        "INSERT INTO release_torrents (release_id, content) VALUES ($1, $2)",
+        release_id,
+        content
+    );
+    query.execute(&pool).await?;
+    Ok(())
 }

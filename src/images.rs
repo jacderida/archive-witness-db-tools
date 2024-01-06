@@ -9,9 +9,8 @@ pub async fn import_images(
     release_id: i32,
     cumulus_image_export: HashMap<String, CumulusImage>,
     releases_base_path: &PathBuf,
-    torrent_path: &PathBuf,
 ) -> Result<()> {
-    let tree = get_torrent_tree(torrent_path)?;
+    let tree = get_torrent_tree(release_id).await?;
     for (path, size) in tree {
         let file_path = releases_base_path.join(path.clone());
         let file_name = file_path

@@ -71,7 +71,7 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
             (None, None)
         };
 
-        let (directory, file_count, size) = if let Some(path) = torrent_path {
+        let (directory, file_count, size) = if let Some(ref path) = torrent_path {
             match Torrent::read_from_file(path.clone()) {
                 Ok(torrent) => {
                     let files = torrent
@@ -115,14 +115,18 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
             size: size.map(|s| s as i64),
             torrent_url: torrent_url.map(|u| u.to_string()),
         };
-        crate::db::save_release(new_release).await?;
+        let saved_release = crate::db::save_release(new_release).await?;
+        if let Some(path) = torrent_path {
+            crate::db::save_torrent(saved_release.id, &path).await?;
+        }
     }
 
     Ok(())
 }
 
-pub fn get_torrent_tree(torrent_path: &PathBuf) -> Result<Vec<(PathBuf, u64)>> {
-    let torrent = Torrent::read_from_file(torrent_path.clone())?;
+pub async fn get_torrent_tree(release_id: i32) -> Result<Vec<(PathBuf, u64)>> {
+    let torrent_content = crate::db::get_torrent_content(release_id).await?;
+    let torrent = Torrent::read_from_bytes(torrent_content)?;
     let files = torrent
         .files
         .ok_or_else(|| eyre!("Failed to obtain torrent files"))?;

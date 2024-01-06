@@ -124,9 +124,6 @@ enum ImagesSubcommands {
         /// Path to the base 911datasets.org directory
         #[arg(long)]
         releases_base_path: PathBuf,
-        /// Path to the torrent file corresponding to the release
-        #[arg(long)]
-        torrent_path: PathBuf,
     },
 }
 
@@ -146,9 +143,9 @@ enum ReleasesSubcommands {
     /// List all the file extensions in a release
     #[clap(name = "ls-extensions")]
     LsExtensions {
-        /// Path to the torrent file for the release
+        /// The ID of the release
         #[arg(long)]
-        torrent_path: PathBuf,
+        release_id: u32,
     },
 }
 
@@ -251,17 +248,10 @@ async fn main() -> Result<()> {
                 cumulus_export_path,
                 release_id,
                 releases_base_path,
-                torrent_path,
             } => {
                 let images = read_cumulus_export::<_, CumulusImage>(cumulus_export_path)?;
                 println!("Retrieved {} images from the Cumulus export", images.len());
-                import_images(
-                    release_id as i32,
-                    images,
-                    &releases_base_path,
-                    &torrent_path,
-                )
-                .await?;
+                import_images(release_id as i32, images, &releases_base_path).await?;
                 Ok(())
             }
         },
@@ -274,8 +264,8 @@ async fn main() -> Result<()> {
                 list_releases().await?;
                 Ok(())
             }
-            ReleasesSubcommands::LsExtensions { torrent_path } => {
-                let tree = get_torrent_tree(&torrent_path)?;
+            ReleasesSubcommands::LsExtensions { release_id } => {
+                let tree = get_torrent_tree(release_id as i32).await?;
                 let mut extension_counts = HashMap::new();
                 for (path, _) in tree {
                     if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
