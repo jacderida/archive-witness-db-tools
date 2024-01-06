@@ -27,15 +27,6 @@ struct Opt {
 enum Commands {
     #[clap(subcommand)]
     AccessDb(AccessDbSubcommands),
-    /// Download all the 911datasets.org torrent files.
-    ///
-    /// The URLs are encoded in the binary.
-    #[clap(name = "download-torrents")]
-    DownloadTorrents {
-        /// The output directory for the torrents
-        #[arg(long)]
-        path: PathBuf,
-    },
     #[clap(subcommand)]
     Cumulus(CumulusSubcommands),
     #[clap(subcommand)]
@@ -130,6 +121,15 @@ enum ImagesSubcommands {
 /// Manage 911datasets.org releases
 #[derive(Subcommand, Debug)]
 enum ReleasesSubcommands {
+    /// Download all the 911datasets.org torrent files.
+    ///
+    /// The URLs are encoded in the binary.
+    #[clap(name = "download-torrents")]
+    DownloadTorrents {
+        /// The output directory for the torrents
+        #[arg(long)]
+        path: PathBuf,
+    },
     /// Initialise the 911datasets.org releases
     #[clap(name = "init")]
     Init {
@@ -189,10 +189,6 @@ async fn main() -> Result<()> {
                 Ok(())
             }
         },
-        Commands::DownloadTorrents { path } => {
-            download_torrents(&path).await?;
-            Ok(())
-        }
         Commands::Cumulus(cumulus_command) => match cumulus_command {
             CumulusSubcommands::Get {
                 cumulus_export_path,
@@ -258,6 +254,10 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Releases(releases_command) => match releases_command {
+            ReleasesSubcommands::DownloadTorrents { path } => {
+                download_torrents(&path).await?;
+                Ok(())
+            }
             ReleasesSubcommands::Init { torrent_path } => {
                 init_releases(torrent_path).await?;
                 Ok(())
