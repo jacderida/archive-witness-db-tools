@@ -13,7 +13,7 @@ use crate::models::MasterVideo;
 use crate::releases::*;
 use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -143,9 +143,11 @@ enum ReleasesSubcommands {
     /// List all the file extensions in a release
     #[clap(name = "ls-extensions")]
     LsExtensions {
-        /// The ID of the release
+        /// The ID of the release.
+        ///
+        /// If no ID is supplied, extensions for all releases will be listed.
         #[arg(long)]
-        release_id: u32,
+        release_id: Option<u32>,
     },
 }
 
@@ -265,16 +267,18 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             ReleasesSubcommands::LsExtensions { release_id } => {
-                let tree = get_torrent_tree(release_id as i32).await?;
-                let mut extension_counts = HashMap::new();
-                for (path, _) in tree {
-                    if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                        let ext_lower = ext.to_lowercase();
-                        *extension_counts.entry(ext_lower).or_insert(0) += 1;
+                if let Some(release_id) = release_id {
+                    list_release_extensions(release_id as i32).await?;
+                } else {
+                    let releases = crate::db::get_releases().await?;
+                    for release in releases.iter() {
+                        let banner = "=".repeat(release.name.len());
+                        println!("{}", banner);
+                        println!("{}", release.name);
+                        println!("{}", banner);
+                        list_release_extensions(release.id as i32).await?;
+                        println!();
                     }
-                }
-                for (ext, count) in extension_counts {
-                    println!("{}: {}", ext, count);
                 }
                 Ok(())
             }

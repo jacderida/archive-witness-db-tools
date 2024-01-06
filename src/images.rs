@@ -10,7 +10,9 @@ pub async fn import_images(
     cumulus_image_export: HashMap<String, CumulusImage>,
     releases_base_path: &PathBuf,
 ) -> Result<()> {
-    let tree = get_torrent_tree(release_id).await?;
+    let tree = get_torrent_tree(release_id)
+        .await?
+        .ok_or_else(|| eyre!(format!("Release {} does not have a torrent", release_id)))?;
     for (path, size) in tree {
         let file_path = releases_base_path.join(path.clone());
         let file_name = file_path

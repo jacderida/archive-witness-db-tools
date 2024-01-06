@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::Result;
 use crate::models::{Content, Image, MasterVideo, NistTape, NistVideo, Photographer, Release, Tag};
 use csv::ReaderBuilder;
 use dotenvy::dotenv;
@@ -47,18 +47,18 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
     Ok(videos)
 }
 
-pub async fn get_torrent_content(release_id: i32) -> Result<Vec<u8>> {
+pub async fn get_torrent_content(release_id: i32) -> Result<Option<Vec<u8>>> {
     let pool = establish_connection().await?;
     let row = sqlx::query!(
         "SELECT content FROM release_torrents WHERE release_id = $1",
         release_id
     )
-    .fetch_one(&pool)
+    .fetch_optional(&pool)
     .await?;
-    let content: Vec<u8> = row
-        .content
-        .ok_or_else(|| Error::NoTorrentForRelease(release_id))?;
-    Ok(content)
+    match row {
+        Some(row) => Ok(Some(row.content)),
+        None => Ok(None),
+    }
 }
 
 pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> color_eyre::Result<()> {

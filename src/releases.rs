@@ -4,6 +4,7 @@ use chrono::NaiveDate;
 use color_eyre::{eyre::eyre, Result};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lava_torrent::torrent::v1::Torrent;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncWriteExt, BufWriter};
@@ -124,23 +125,49 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub async fn get_torrent_tree(release_id: i32) -> Result<Vec<(PathBuf, u64)>> {
+pub async fn get_torrent_tree(release_id: i32) -> Result<Option<Vec<(PathBuf, u64)>>> {
     let torrent_content = crate::db::get_torrent_content(release_id).await?;
-    let torrent = Torrent::read_from_bytes(torrent_content)?;
-    let files = torrent
-        .files
-        .ok_or_else(|| eyre!("Failed to obtain torrent files"))?;
-    let tree = files
-        .iter()
-        .map(|f| (f.path.clone(), f.length as u64))
-        .collect::<Vec<(PathBuf, u64)>>();
-    Ok(tree)
+    if let Some(content) = torrent_content {
+        let torrent = Torrent::read_from_bytes(content)?;
+        let files = torrent
+            .files
+            .ok_or_else(|| eyre!("Failed to obtain torrent files"))?;
+        let tree = files
+            .iter()
+            .map(|f| (f.path.clone(), f.length as u64))
+            .collect::<Vec<(PathBuf, u64)>>();
+        return Ok(Some(tree));
+    }
+    Ok(None)
 }
 
 pub async fn list_releases() -> Result<()> {
     let releases = crate::db::get_releases().await?;
     for release in releases.iter() {
         println!("{}: {}", release.id, release.name);
+    }
+    Ok(())
+}
+
+pub async fn list_release_extensions(release_id: i32) -> Result<()> {
+    let tree = get_torrent_tree(release_id as i32).await?;
+    if let Some(tree) = tree {
+        let mut extension_counts = HashMap::new();
+        for (path, _) in tree {
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                let ext_lower = ext.to_lowercase();
+                *extension_counts.entry(ext_lower).or_insert(0) += 1;
+            }
+        }
+
+        let mut sorted_extensions: Vec<_> = extension_counts.into_iter().collect();
+        sorted_extensions.sort_by(|a, b| a.0.cmp(&b.0));
+
+        for (ext, count) in sorted_extensions {
+            println!("{}: {}", ext, count);
+        }
+    } else {
+        println!("Release {} does not have a torrent", release_id);
     }
     Ok(())
 }
