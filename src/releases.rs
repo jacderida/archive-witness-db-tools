@@ -141,15 +141,7 @@ pub async fn get_torrent_tree(release_id: i32) -> Result<Option<Vec<(PathBuf, u6
     Ok(None)
 }
 
-pub async fn list_releases() -> Result<()> {
-    let releases = crate::db::get_releases().await?;
-    for release in releases.iter() {
-        println!("{}: {}", release.id, release.name);
-    }
-    Ok(())
-}
-
-pub async fn list_release_extensions(release_id: i32) -> Result<()> {
+pub async fn get_release_extensions(release_id: i32) -> Result<Option<Vec<(String, i32)>>> {
     let tree = get_torrent_tree(release_id as i32).await?;
     if let Some(tree) = tree {
         let mut extension_counts = HashMap::new();
@@ -162,8 +154,45 @@ pub async fn list_release_extensions(release_id: i32) -> Result<()> {
 
         let mut sorted_extensions: Vec<_> = extension_counts.into_iter().collect();
         sorted_extensions.sort_by(|a, b| a.0.cmp(&b.0));
+        return Ok(Some(sorted_extensions));
+    }
+    Ok(None)
+}
 
-        for (ext, count) in sorted_extensions {
+pub async fn list_release_range_extensions(
+    start_release_id: i32,
+    end_release_id: i32,
+) -> Result<()> {
+    let mut cumulative_extensions = HashMap::new();
+    for id in start_release_id..=end_release_id {
+        if let Some(extensions) = get_release_extensions(id).await? {
+            for (ext, count) in extensions {
+                *cumulative_extensions.entry(ext).or_insert(0) += count;
+            }
+        }
+    }
+
+    let mut sorted: Vec<_> = cumulative_extensions.iter().collect();
+    sorted.sort_by(|a, b| a.0.cmp(&b.0));
+    for (extension, count) in sorted {
+        println!("{}: {}", extension, count);
+    }
+
+    Ok(())
+}
+
+pub async fn list_releases() -> Result<()> {
+    let releases = crate::db::get_releases().await?;
+    for release in releases.iter() {
+        println!("{}: {}", release.id, release.name);
+    }
+    Ok(())
+}
+
+pub async fn list_release_extensions(release_id: i32) -> Result<()> {
+    let extensions = get_release_extensions(release_id).await?;
+    if let Some(extensions) = extensions {
+        for (ext, count) in extensions {
             println!("{}: {}", ext, count);
         }
     } else {

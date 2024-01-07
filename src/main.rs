@@ -140,7 +140,9 @@ enum ReleasesSubcommands {
     /// List all releases
     #[clap(name = "ls")]
     Ls {},
-    /// List all the file extensions in a release
+    /// List all the file extensions in a release.
+    ///
+    /// The command can work with an individual, a range, or all releases.
     #[clap(name = "ls-extensions")]
     LsExtensions {
         /// The ID of the release.
@@ -148,6 +150,12 @@ enum ReleasesSubcommands {
         /// If no ID is supplied, extensions for all releases will be listed.
         #[arg(long)]
         release_id: Option<u32>,
+        /// The starting release ID of the range.
+        #[arg(long)]
+        start_release_id: Option<u32>,
+        /// The end release ID of the range.
+        #[arg(long)]
+        end_release_id: Option<u32>,
     },
 }
 
@@ -266,8 +274,14 @@ async fn main() -> Result<()> {
                 list_releases().await?;
                 Ok(())
             }
-            ReleasesSubcommands::LsExtensions { release_id } => {
-                if let Some(release_id) = release_id {
+            ReleasesSubcommands::LsExtensions {
+                release_id,
+                start_release_id,
+                end_release_id,
+            } => {
+                if let (Some(start), Some(end)) = (start_release_id, end_release_id) {
+                    list_release_range_extensions(start as i32, end as i32).await?;
+                } else if let Some(release_id) = release_id {
                     list_release_extensions(release_id as i32).await?;
                 } else {
                     let releases = crate::db::get_releases().await?;
