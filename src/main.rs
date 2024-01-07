@@ -328,12 +328,15 @@ async fn main() -> Result<()> {
                     // There could be many tapes that satisfy this criteria, but we have to pick
                     // one, so we'll just take the first one returned. We will need to look at the
                     // list manually to fix it up. This will be done as a separate process.
-                    let tape = tapes.iter().find(|t| t.derived_from == 0).ok_or_else(|| {
-                        eyre!(format!(
-                            "Could not retrieve tape for video with ID {}",
-                            video.video_id
-                        ))
-                    })?;
+                    let tape = tapes
+                        .iter()
+                        .find(|t| t.derived_from == 0 && t.video_id == video.video_id)
+                        .ok_or_else(|| {
+                            eyre!(format!(
+                                "Could not retrieve tape for video with ID {}",
+                                video.video_id
+                            ))
+                        })?;
                     let master_video = MasterVideo {
                         id: 0,
                         title: video.video_title.clone(),
