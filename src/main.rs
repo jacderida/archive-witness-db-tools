@@ -188,6 +188,13 @@ enum VideosSubcommands {
         #[arg(long)]
         start_release_id: u32,
     },
+    /// Exports the master video list to CSV
+    #[clap(name = "export-master")]
+    ExportMaster {
+        /// Path to the output CSV file
+        #[arg(long)]
+        out_path: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -366,6 +373,14 @@ async fn main() -> Result<()> {
             } => {
                 export_video_list(start_release_id as i32, end_release_id as i32, &out_path)
                     .await?;
+                Ok(())
+            }
+            VideosSubcommands::ExportMaster { out_path } => {
+                println!(
+                    "Exporting master video list to {}",
+                    out_path.to_string_lossy()
+                );
+                export_master_videos(&out_path).await?;
                 Ok(())
             }
         },

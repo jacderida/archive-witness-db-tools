@@ -231,6 +231,37 @@ pub async fn export_video_list(
     Ok(())
 }
 
+pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
+    let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
+    writer.write_record(&[
+        "id",
+        "title",
+        "date",
+        "description",
+        "format",
+        "network",
+        "source",
+        "notes",
+    ])?;
+
+    let master_videos = crate::db::get_master_videos().await?;
+    for video in master_videos.iter() {
+        writer.write_record(&[
+            video.id.to_string(),
+            video.title.clone(),
+            video.date.map_or("".to_string(), |d| d.to_string()),
+            video.description.clone().unwrap_or("".to_string()),
+            video.format.clone().unwrap_or("".to_string()),
+            video.network.clone().unwrap_or("".to_string()),
+            video.source.clone().unwrap_or("".to_string()),
+            video.notes.clone().unwrap_or("".to_string()),
+        ])?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
 pub async fn download_file(url: &Url, target_path: &PathBuf, file_pb: &ProgressBar) -> Result<()> {
     let client = reqwest::Client::new();
     let mut request_builder = client.get(url.clone());

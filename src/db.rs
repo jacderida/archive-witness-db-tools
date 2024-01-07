@@ -20,7 +20,7 @@ pub async fn get_release(release_id: i32) -> Result<Release> {
         Release,
         r#"SELECT id, date, name, directory_name, file_count, size, torrent_url
            FROM releases
-            WHERE id = $1
+           WHERE id = $1
         "#,
         release_id
     )
@@ -38,6 +38,17 @@ pub async fn get_releases() -> Result<Vec<Release>> {
     .fetch_all(&pool)
     .await?;
     Ok(releases)
+}
+
+pub async fn get_master_videos() -> Result<Vec<MasterVideo>> {
+    let pool = establish_connection().await?;
+    let videos = sqlx::query_as!(
+        MasterVideo,
+        "SELECT id, title, date, description, format, network, source, notes FROM master_videos"
+    )
+    .fetch_all(&pool)
+    .await?;
+    Ok(videos)
 }
 
 pub async fn get_nist_videos() -> Result<Vec<NistVideo>> {
