@@ -175,6 +175,19 @@ enum VideosSubcommands {
         #[arg(long)]
         out_path: PathBuf,
     },
+    /// Exports the video list for a given range of releases
+    #[clap(name = "export")]
+    Export {
+        /// The end release ID of the range
+        #[arg(long)]
+        end_release_id: u32,
+        /// Path to the output CSV file
+        #[arg(long)]
+        out_path: PathBuf,
+        /// The starting release ID of the range
+        #[arg(long)]
+        start_release_id: u32,
+    },
 }
 
 #[tokio::main]
@@ -344,6 +357,15 @@ async fn main() -> Result<()> {
                 );
                 println!("This can take 30 to 60 seconds...");
                 convert_videos_to_csv(cumulus_export_path, out_path)?;
+                Ok(())
+            }
+            VideosSubcommands::Export {
+                end_release_id,
+                out_path,
+                start_release_id,
+            } => {
+                export_video_list(start_release_id as i32, end_release_id as i32, &out_path)
+                    .await?;
                 Ok(())
             }
         },

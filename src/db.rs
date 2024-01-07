@@ -14,6 +14,21 @@ pub async fn establish_connection() -> Result<Pool<Postgres>> {
     Ok(pool)
 }
 
+pub async fn get_release(release_id: i32) -> Result<Release> {
+    let pool = establish_connection().await?;
+    let release = sqlx::query_as!(
+        Release,
+        r#"SELECT id, date, name, directory_name, file_count, size, torrent_url
+           FROM releases
+            WHERE id = $1
+        "#,
+        release_id
+    )
+    .fetch_one(&pool)
+    .await?;
+    Ok(release)
+}
+
 pub async fn get_releases() -> Result<Vec<Release>> {
     let pool = establish_connection().await?;
     let releases = sqlx::query_as!(

@@ -2,6 +2,7 @@ use crate::models::Release;
 use crate::static_data::RELEASE_DATA;
 use chrono::NaiveDate;
 use color_eyre::{eyre::eyre, Result};
+use csv::Writer;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lava_torrent::torrent::v1::Torrent;
 use std::collections::HashMap;
@@ -201,6 +202,35 @@ pub async fn list_release_extensions(release_id: i32) -> Result<()> {
     Ok(())
 }
 
+pub async fn export_video_list(
+    start_release_id: i32,
+    end_release_id: i32,
+    out_path: &PathBuf,
+) -> Result<()> {
+    let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
+    writer.write_record(&["master video id", "release name", "file path", "file size"])?;
+
+    for release_id in start_release_id..=end_release_id {
+        println!("Processing release {release_id}...");
+        let release = crate::db::get_release(release_id).await?;
+        if let Some(torrent_tree) = get_torrent_tree(release_id).await? {
+            for (file_path, file_size) in torrent_tree {
+                if is_video_file(&file_path) {
+                    writer.write_record(&[
+                        "0",
+                        &release.name,
+                        file_path.to_str().unwrap_or(""),
+                        &human_readable_size(file_size),
+                    ])?;
+                }
+            }
+        }
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
 pub async fn download_file(url: &Url, target_path: &PathBuf, file_pb: &ProgressBar) -> Result<()> {
     let client = reqwest::Client::new();
     let mut request_builder = client.get(url.clone());
@@ -252,4 +282,31 @@ fn get_file_name_from_url(url: &Url) -> Result<String> {
         .last()
         .ok_or(eyre!("Failed to parse path segments"))?;
     Ok(file_name.to_string())
+}
+
+fn is_video_file(file_path: &PathBuf) -> bool {
+    let video_extensions = [
+        "avi", "mp4", "mov", "wmv", "mpg", "mpe", "mpeg", "asf", "asx", "m1v", "vob",
+    ];
+    file_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| video_extensions.contains(&ext))
+        .unwrap_or(false)
+}
+
+fn human_readable_size(size: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = 1024 * KB;
+    const GB: u64 = 1024 * MB;
+
+    if size >= GB {
+        format!("{:.2} GB", size as f64 / GB as f64)
+    } else if size >= MB {
+        format!("{:.2} MB", size as f64 / MB as f64)
+    } else if size >= KB {
+        format!("{:.2} KB", size as f64 / KB as f64)
+    } else {
+        format!("{} bytes", size)
+    }
 }
