@@ -9,10 +9,10 @@ pub mod static_data;
 use crate::cumulus::*;
 use crate::db::*;
 use crate::images::*;
-use crate::models::MasterVideo;
+use crate::models::{MasterVideo, Network};
 use crate::releases::*;
 use clap::{Parser, Subcommand};
-use color_eyre::{eyre::eyre, Result};
+use color_eyre::Result;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -321,30 +321,46 @@ async fn main() -> Result<()> {
             VideosSubcommands::BuildMaster {} => {
                 println!("Building master video list from the NIST videos and tapes list");
                 let videos = get_nist_videos().await?;
-                let tapes = get_nist_tapes().await?;
                 let mut master_videos = Vec::new();
 
                 for video in videos.iter() {
-                    // There could be many tapes that satisfy this criteria, but we have to pick
-                    // one, so we'll just take the first one returned. We will need to look at the
-                    // list manually to fix it up. This will be done as a separate process.
-                    let tape = tapes
-                        .iter()
-                        .find(|t| t.derived_from == 0 && t.video_id == video.video_id)
-                        .ok_or_else(|| {
-                            eyre!(format!(
-                                "Could not retrieve tape for video with ID {}",
-                                video.video_id
-                            ))
-                        })?;
+                    let networks = if let Some(network) = &video.network {
+                        if network == "None" || network == "misc" || network.is_empty() {
+                            Vec::new()
+                        } else if network.contains(',') {
+                            network
+                                .split(',')
+                                .into_iter()
+                                .map(|n| Network {
+                                    id: 0,
+                                    name: n.trim().to_string(),
+                                })
+                                .collect::<Vec<Network>>()
+                        } else if network.contains('/') {
+                            network
+                                .split('/')
+                                .into_iter()
+                                .map(|n| Network {
+                                    id: 0,
+                                    name: n.trim().to_string(),
+                                })
+                                .collect::<Vec<Network>>()
+                        } else {
+                            vec![Network {
+                                id: 0,
+                                name: network.to_string(),
+                            }]
+                        }
+                    } else {
+                        Vec::new()
+                    };
+
                     let master_video = MasterVideo {
                         id: 0,
                         title: video.video_title.clone(),
                         date: video.broadcast_date,
                         description: None,
-                        format: Some(tape.format.clone()),
-                        network: video.network.clone(),
-                        source: Some(tape.tape_source.clone()),
+                        networks,
                         notes: video.notes.clone(),
                     };
                     master_videos.push(master_video);

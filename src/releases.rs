@@ -233,16 +233,7 @@ pub async fn export_video_list(
 
 pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
-    writer.write_record(&[
-        "id",
-        "title",
-        "date",
-        "description",
-        "format",
-        "network",
-        "source",
-        "notes",
-    ])?;
+    writer.write_record(&["id", "title", "date", "description", "network", "notes"])?;
 
     let master_videos = crate::db::get_master_videos().await?;
     for video in master_videos.iter() {
@@ -251,9 +242,12 @@ pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
             video.title.clone(),
             video.date.map_or("".to_string(), |d| d.to_string()),
             video.description.clone().unwrap_or("".to_string()),
-            video.format.clone().unwrap_or("".to_string()),
-            video.network.clone().unwrap_or("".to_string()),
-            video.source.clone().unwrap_or("".to_string()),
+            video
+                .networks
+                .iter()
+                .map(|n| n.name.clone())
+                .collect::<Vec<String>>()
+                .join(";"),
             video.notes.clone().unwrap_or("".to_string()),
         ])?;
     }
@@ -322,7 +316,11 @@ fn is_video_file(file_path: &PathBuf) -> bool {
     file_path
         .extension()
         .and_then(|ext| ext.to_str())
-        .map(|ext| video_extensions.contains(&ext))
+        .map(|ext| {
+            video_extensions
+                .iter()
+                .any(|&ve| ve.eq_ignore_ascii_case(ext))
+        })
         .unwrap_or(false)
 }
 

@@ -316,14 +316,17 @@ impl TryFrom<Vec<String>> for NistTape {
     }
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(FromRow)]
+pub struct Network {
+    pub id: i32,
+    pub name: String,
+}
+
 pub struct MasterVideo {
     pub id: i32,
     pub title: String,
     pub date: Option<NaiveDate>,
     pub description: Option<String>,
-    pub format: Option<String>,
-    pub network: Option<String>,
-    pub source: Option<String>,
+    pub networks: Vec<Network>,
     pub notes: Option<String>,
 }
