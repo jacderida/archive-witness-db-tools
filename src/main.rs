@@ -13,6 +13,7 @@ use crate::models::{MasterVideo, Network};
 use crate::releases::*;
 use clap::{Parser, Subcommand};
 use color_eyre::Result;
+use dialoguer::Editor;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -162,6 +163,9 @@ enum ReleasesSubcommands {
 /// Manage videos
 #[derive(Subcommand, Debug)]
 enum VideosSubcommands {
+    /// Add a master video using an interactive editor.
+    #[clap(name = "add-master")]
+    AddMaster {},
     /// Build the master video list from the NIST video list
     #[clap(name = "build-master")]
     BuildMaster {},
@@ -318,6 +322,19 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Videos(videos_command) => match videos_command {
+            VideosSubcommands::AddMaster {} => {
+                let mut master_video = MasterVideo::default();
+                let to_edit = master_video.to_editor();
+                if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
+                    master_video = edited.parse()?;
+                }
+                let saved_ids = db::save_master_videos(vec![master_video.clone()]).await?;
+                println!(
+                    "Created new master video '{}' with ID {}",
+                    master_video.title, saved_ids[0]
+                );
+                Ok(())
+            }
             VideosSubcommands::BuildMaster {} => {
                 println!("Building master video list from the NIST videos and tapes list");
                 let videos = get_nist_videos().await?;
@@ -361,13 +378,14 @@ async fn main() -> Result<()> {
                         date: video.broadcast_date,
                         description: None,
                         networks,
-                        notes: video.notes.clone(),
+                        categories: Vec::new(),
+                        links: Vec::new(),
                     };
                     master_videos.push(master_video);
                 }
 
                 print!("Saving master video list...");
-                save_master_video_list(master_videos).await?;
+                save_master_videos(master_videos).await?;
                 print!("done");
 
                 Ok(())

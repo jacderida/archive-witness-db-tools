@@ -1,11 +1,12 @@
 use crate::cumulus::CumulusImage;
 use chrono::{NaiveDate, NaiveDateTime};
-use color_eyre::{eyre::eyre, Result};
+use color_eyre::{eyre::eyre, Report, Result};
 use image::GenericImageView;
 use magick_rust::{magick_wand_genesis, MagickWand};
 use sqlx::FromRow;
 use std::path::PathBuf;
 use std::process::Command;
+use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(FromRow)]
@@ -316,17 +317,112 @@ impl TryFrom<Vec<String>> for NistTape {
     }
 }
 
-#[derive(FromRow)]
+#[derive(Clone, FromRow)]
+pub struct Category {
+    pub id: i32,
+    pub name: String,
+}
+
+#[derive(Clone, FromRow)]
 pub struct Network {
     pub id: i32,
     pub name: String,
 }
 
+#[derive(Clone, Default)]
 pub struct MasterVideo {
     pub id: i32,
     pub title: String,
     pub date: Option<NaiveDate>,
     pub description: Option<String>,
+    pub categories: Vec<Category>,
     pub networks: Vec<Network>,
-    pub notes: Option<String>,
+    pub links: Vec<String>,
+}
+
+impl MasterVideo {
+    pub fn to_editor(&self) -> String {
+        let categories = self
+            .categories
+            .iter()
+            .map(|c| c.name.clone())
+            .collect::<Vec<String>>()
+            .join(";");
+        let networks = self
+            .networks
+            .iter()
+            .map(|n| n.name.clone())
+            .collect::<Vec<String>>()
+            .join(";");
+        let links = self.links.join(";");
+        format!(
+            "Title: {}\n---\nDate: {}\n---\nDescription: {}\n---\nCategories: {}\n---\nNetworks: {}\n---\nLinks: {}\n---\n",
+            self.title,
+            self.date.map_or(String::new(), |d| d.to_string()),
+            self.description.as_ref().unwrap_or(&String::new()),
+            categories,
+            networks,
+            links
+        )
+    }
+}
+
+impl FromStr for MasterVideo {
+    type Err = Report;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<_> = s.split("---\n").collect();
+        if parts.len() != 6 {
+            return Err(eyre!("Input string does not match expected format"));
+        }
+
+        let title = parts[0].trim_start_matches("Title: ").trim().to_string();
+        let date = parts[1].trim_start_matches("Date: ").trim();
+        let date = if date.is_empty() {
+            None
+        } else {
+            Some(date.parse()?)
+        };
+        let description = parts[2]
+            .trim_start_matches("Description: ")
+            .trim()
+            .to_string();
+        let categories = parts[3].trim_start_matches("Categories: ").trim();
+        let networks = parts[4].trim_start_matches("Networks: ").trim();
+        let links = parts[5].trim_start_matches("Links: ").trim();
+        let links = if links == "---" { None } else { Some(links) };
+
+        Ok(MasterVideo {
+            id: 0,
+            title,
+            date,
+            description: if description.is_empty() {
+                None
+            } else {
+                Some(description)
+            },
+            categories: categories
+                .split(';')
+                .map(|name| Category {
+                    id: 0,
+                    name: name.trim().to_string(),
+                })
+                .collect(),
+            networks: networks
+                .split(';')
+                .map(|name| Network {
+                    id: 0,
+                    name: name.trim().to_string(),
+                })
+                .collect(),
+            links: if let Some(links) = links {
+                links
+                    .split(';')
+                    .map(|link| link.trim().to_string())
+                    .collect()
+            } else {
+                vec![]
+            },
+        })
+    }
 }

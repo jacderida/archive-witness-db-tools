@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::models::{
-    Content, Image, MasterVideo, Network, NistTape, NistVideo, Photographer, Release, Tag,
+    Category, Content, Image, MasterVideo, Network, NistTape, NistVideo, Photographer, Release, Tag,
 };
 use csv::ReaderBuilder;
 use dotenvy::dotenv;
@@ -48,11 +48,16 @@ pub async fn get_master_videos() -> Result<Vec<MasterVideo>> {
 
     let rows = sqlx::query!(
         "SELECT 
-            mv.id, mv.title, mv.date, mv.description, mv.notes,
-            n.id as network_id, n.name as network_name
-         FROM master_videos mv
-         LEFT JOIN networks_master_videos nmv ON mv.id = nmv.master_video_id
-         LEFT JOIN networks n ON nmv.network_id = n.id"
+            mv.id, mv.title, mv.date, mv.description,
+            n.id as network_id, n.name as network_name,
+            c.id as category_id, c.name as category_name,
+            vu.url
+        FROM master_videos mv
+        LEFT JOIN networks_master_videos nmv ON mv.id = nmv.master_video_id
+        LEFT JOIN networks n ON nmv.network_id = n.id
+        LEFT JOIN categories_master_videos cmv ON mv.id = cmv.master_video_id
+        LEFT JOIN categories c ON cmv.category_id = c.id
+        LEFT JOIN video_urls vu ON mv.id = vu.master_video_id"
     )
     .fetch_all(&pool)
     .await?;
@@ -60,18 +65,30 @@ pub async fn get_master_videos() -> Result<Vec<MasterVideo>> {
     let mut video_map = std::collections::HashMap::new();
     for row in rows {
         let entry = video_map.entry(row.id).or_insert_with(|| MasterVideo {
-            id: row.id.unwrap(),
-            title: row.title.unwrap(),
+            categories: vec![],
             date: row.date,
             description: row.description,
-            notes: row.notes,
+            id: row.id.unwrap(),
+            links: vec![],
             networks: vec![],
+            title: row.title.unwrap(),
         });
+
         if let Some(network_id) = row.network_id {
             entry.networks.push(Network {
                 id: network_id,
                 name: row.network_name.unwrap(),
             });
+        }
+        if let Some(category_id) = row.category_id {
+            entry.categories.push(Category {
+                id: category_id,
+                name: row.category_name.unwrap(),
+            });
+        }
+
+        if let Some(url) = row.url {
+            entry.links.push(url);
         }
     }
     videos.extend(video_map.into_values());
@@ -196,24 +213,25 @@ pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> color_eyre::
     Ok(())
 }
 
-pub async fn save_master_video_list(master_videos: Vec<MasterVideo>) -> Result<()> {
+pub async fn save_master_videos(master_videos: Vec<MasterVideo>) -> Result<Vec<i32>> {
+    let mut saved_ids = Vec::new();
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
 
     for video in master_videos.iter() {
         let video_id = sqlx::query!(
-            r#"INSERT INTO master_videos (title, date, description, notes)
-               VALUES ($1, $2, $3, $4)
-               RETURNING id, title, date, description, notes
+            r#"INSERT INTO master_videos (title, date, description)
+               VALUES ($1, $2, $3)
+               RETURNING id, title, date, description
             "#,
             video.title,
             video.date,
             video.description,
-            video.notes,
         )
         .fetch_one(&mut *tx)
         .await?
         .id;
+        saved_ids.push(video_id);
 
         for network in video.networks.iter() {
             let row = sqlx::query!(r#"SELECT id FROM networks WHERE name = $1"#, network.name)
@@ -241,11 +259,53 @@ pub async fn save_master_video_list(master_videos: Vec<MasterVideo>) -> Result<(
             .execute(&mut *tx)
             .await?;
         }
+
+        for category in video.categories.iter() {
+            let row = sqlx::query!(
+                r#"SELECT id FROM categories WHERE name = $1"#,
+                category.name
+            )
+            .fetch_optional(&mut *tx)
+            .await?;
+            let category_id = if let Some(row) = row {
+                row.id
+            } else {
+                sqlx::query!(
+                    r#"INSERT INTO categories (name) VALUES ($1) RETURNING id"#,
+                    category.name
+                )
+                .fetch_one(&mut *tx)
+                .await?
+                .id
+            };
+
+            sqlx::query!(
+                r#"INSERT INTO categories_master_videos (category_id, master_video_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
+                category_id,
+                video_id,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        for url in video.links.iter() {
+            sqlx::query!(
+                r#"INSERT INTO video_urls (master_video_id, url)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
+                video_id,
+                url
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
     }
 
     tx.commit().await?;
 
-    Ok(())
+    Ok(saved_ids)
 }
 
 pub async fn save_image(content: Content, image: Image) -> Result<Image> {

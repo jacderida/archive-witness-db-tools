@@ -233,7 +233,7 @@ pub async fn export_video_list(
 
 pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
-    writer.write_record(&["id", "title", "date", "description", "network", "notes"])?;
+    writer.write_record(&["id", "title", "date", "description", "network"])?;
 
     let master_videos = crate::db::get_master_videos().await?;
     for video in master_videos.iter() {
@@ -248,7 +248,6 @@ pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
                 .map(|n| n.name.clone())
                 .collect::<Vec<String>>()
                 .join(";"),
-            video.notes.clone().unwrap_or("".to_string()),
         ])?;
     }
 
