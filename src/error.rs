@@ -19,6 +19,8 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     LavaTorrent(#[from] lava_torrent::LavaTorrentError),
+    #[error("There is no master video with ID {0}")]
+    MasterVideoNotFound(i32),
     #[error("Release ID {0} does not have a torrent")]
     NoTorrentForRelease(i32),
     #[error("Cannot parse path segments from torrent URL")]

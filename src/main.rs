@@ -33,6 +33,8 @@ enum Commands {
     #[clap(subcommand)]
     Images(ImagesSubcommands),
     #[clap(subcommand)]
+    MasterVideos(MasterVideosSubcommands),
+    #[clap(subcommand)]
     Releases(ReleasesSubcommands),
     #[clap(subcommand)]
     Videos(VideosSubcommands),
@@ -119,6 +121,20 @@ enum ImagesSubcommands {
     },
 }
 
+/// Manage master videos
+#[derive(Subcommand, Debug)]
+enum MasterVideosSubcommands {
+    /// Add a master video using an interactive editor.
+    #[clap(name = "add")]
+    Add {},
+    /// Edit a master video using an interactive editor.
+    #[clap(name = "edit")]
+    Edit {
+        #[arg(long)]
+        id: u32,
+    },
+}
+
 /// Manage 911datasets.org releases
 #[derive(Subcommand, Debug)]
 enum ReleasesSubcommands {
@@ -163,9 +179,6 @@ enum ReleasesSubcommands {
 /// Manage videos
 #[derive(Subcommand, Debug)]
 enum VideosSubcommands {
-    /// Add a master video using an interactive editor.
-    #[clap(name = "add-master")]
-    AddMaster {},
     /// Build the master video list from the NIST video list
     #[clap(name = "build-master")]
     BuildMaster {},
@@ -285,6 +298,36 @@ async fn main() -> Result<()> {
                 Ok(())
             }
         },
+        Commands::MasterVideos(master_videos_command) => match master_videos_command {
+            MasterVideosSubcommands::Add {} => {
+                let mut master_video = MasterVideo::default();
+                let to_edit = master_video.to_editor();
+                if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
+                    master_video.update_from_editor(&edited)?;
+                }
+
+                let updated = db::save_master_video(master_video).await?;
+                println!("==================");
+                println!("Saved master video");
+                println!("==================");
+                updated.print();
+                Ok(())
+            }
+            MasterVideosSubcommands::Edit { id } => {
+                let mut master_video = db::get_master_video(id as i32).await?;
+                let to_edit = master_video.to_editor();
+                if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
+                    master_video.update_from_editor(&edited)?;
+                }
+
+                let updated = db::save_master_video(master_video).await?;
+                println!("==================");
+                println!("Saved master video");
+                println!("==================");
+                updated.print();
+                Ok(())
+            }
+        },
         Commands::Releases(releases_command) => match releases_command {
             ReleasesSubcommands::DownloadTorrents { path } => {
                 download_torrents(&path).await?;
@@ -322,19 +365,6 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Videos(videos_command) => match videos_command {
-            VideosSubcommands::AddMaster {} => {
-                let mut master_video = MasterVideo::default();
-                let to_edit = master_video.to_editor();
-                if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
-                    master_video = edited.parse()?;
-                }
-                let saved_ids = db::save_master_videos(vec![master_video.clone()]).await?;
-                println!(
-                    "Created new master video '{}' with ID {}",
-                    master_video.title, saved_ids[0]
-                );
-                Ok(())
-            }
             VideosSubcommands::BuildMaster {} => {
                 println!("Building master video list from the NIST videos and tapes list");
                 let videos = get_nist_videos().await?;
@@ -385,7 +415,9 @@ async fn main() -> Result<()> {
                 }
 
                 print!("Saving master video list...");
-                save_master_videos(master_videos).await?;
+                for video in master_videos.iter() {
+                    save_master_video(video.clone()).await?;
+                }
                 print!("done");
 
                 Ok(())

@@ -1,12 +1,11 @@
 use crate::cumulus::CumulusImage;
 use chrono::{NaiveDate, NaiveDateTime};
-use color_eyre::{eyre::eyre, Report, Result};
+use color_eyre::{eyre::eyre, Result};
 use image::GenericImageView;
 use magick_rust::{magick_wand_genesis, MagickWand};
 use sqlx::FromRow;
 use std::path::PathBuf;
 use std::process::Command;
-use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(FromRow)]
@@ -341,22 +340,78 @@ pub struct MasterVideo {
 }
 
 impl MasterVideo {
+    pub fn print(&self) {
+        println!("ID: {}", self.id);
+        println!("Title: {}", self.title);
+        println!(
+            "Date: {}",
+            self.date.map_or(String::new(), |d| d.to_string())
+        );
+        if let Some(description) = &self.description {
+            println!("Description: {}", description);
+        } else {
+            println!("Description:");
+        }
+        if self.categories.is_empty() {
+            println!("Categories:");
+        } else {
+            println!(
+                "Categories: {}",
+                self.categories
+                    .iter()
+                    .map(|c| c.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";")
+            );
+        }
+        if self.networks.is_empty() {
+            println!("Networks:");
+        } else {
+            println!(
+                "Networks: {}",
+                self.networks
+                    .iter()
+                    .map(|n| n.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";")
+            );
+        }
+        if self.links.is_empty() {
+            println!("Links:");
+        } else {
+            println!("Links: {}", self.links.join(";"));
+        }
+    }
+
     pub fn to_editor(&self) -> String {
-        let categories = self
-            .categories
-            .iter()
-            .map(|c| c.name.clone())
-            .collect::<Vec<String>>()
-            .join(";");
-        let networks = self
-            .networks
-            .iter()
-            .map(|n| n.name.clone())
-            .collect::<Vec<String>>()
-            .join(";");
-        let links = self.links.join(";");
+        let categories = if self.categories.is_empty() {
+            "".to_string()
+        } else {
+            self.categories
+                .iter()
+                .map(|c| c.name.clone())
+                .collect::<Vec<String>>()
+                .join(";")
+        };
+
+        let networks = if self.networks.is_empty() {
+            "".to_string()
+        } else {
+            self.networks
+                .iter()
+                .map(|n| n.name.clone())
+                .collect::<Vec<String>>()
+                .join(";")
+        };
+
+        let links = if self.links.is_empty() {
+            "".to_string()
+        } else {
+            self.links.join(";")
+        };
+
         format!(
-            "Title: {}\n---\nDate: {}\n---\nDescription: {}\n---\nCategories: {}\n---\nNetworks: {}\n---\nLinks: {}\n---\n",
+            "Title: {}\n---\nDate: {}\n---\nDescription: {}\n---\nCategories: {}\n---\nNetworks: {}\n---\nLinks: {}",
             self.title,
             self.date.map_or(String::new(), |d| d.to_string()),
             self.description.as_ref().unwrap_or(&String::new()),
@@ -365,64 +420,59 @@ impl MasterVideo {
             links
         )
     }
-}
 
-impl FromStr for MasterVideo {
-    type Err = Report;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<_> = s.split("---\n").collect();
+    pub fn update_from_editor(&mut self, edited: &str) -> Result<()> {
+        let parts: Vec<_> = edited.split("---\n").collect();
         if parts.len() != 6 {
             return Err(eyre!("Input string does not match expected format"));
         }
 
-        let title = parts[0].trim_start_matches("Title: ").trim().to_string();
+        self.title = parts[0].trim_start_matches("Title: ").trim().to_string();
+
         let date = parts[1].trim_start_matches("Date: ").trim();
-        let date = if date.is_empty() {
+        self.date = if date.is_empty() {
             None
         } else {
             Some(date.parse()?)
         };
+
         let description = parts[2]
             .trim_start_matches("Description: ")
             .trim()
             .to_string();
-        let categories = parts[3].trim_start_matches("Categories: ").trim();
-        let networks = parts[4].trim_start_matches("Networks: ").trim();
-        let links = parts[5].trim_start_matches("Links: ").trim();
-        let links = if links == "---" { None } else { Some(links) };
+        self.description = if description.is_empty() {
+            None
+        } else {
+            Some(description)
+        };
 
-        Ok(MasterVideo {
-            id: 0,
-            title,
-            date,
-            description: if description.is_empty() {
-                None
-            } else {
-                Some(description)
-            },
-            categories: categories
-                .split(';')
-                .map(|name| Category {
-                    id: 0,
-                    name: name.trim().to_string(),
-                })
-                .collect(),
-            networks: networks
-                .split(';')
-                .map(|name| Network {
-                    id: 0,
-                    name: name.trim().to_string(),
-                })
-                .collect(),
-            links: if let Some(links) = links {
-                links
-                    .split(';')
-                    .map(|link| link.trim().to_string())
-                    .collect()
-            } else {
-                vec![]
-            },
-        })
+        let categories = parts[3].trim_start_matches("Categories: ").trim();
+        for category in categories.split(';').map(|c| c.trim()) {
+            if let None = self.categories.iter().find(|c| c.name == category) {
+                self.categories.push(Category {
+                    id: 0, // The ID will be applied when the video is saved.
+                    name: category.to_string(),
+                });
+            }
+        }
+
+        let networks = parts[4].trim_start_matches("Networks: ").trim();
+        for network in networks.split(';').map(|n| n.trim()) {
+            if let None = self.networks.iter().find(|n| n.name == network) {
+                self.networks.push(Network {
+                    id: 0, // The ID will be applied when the video is saved.
+                    name: network.to_string(),
+                });
+            }
+        }
+
+        let links = parts[5].trim_start_matches("Links: ").trim();
+        for link in links.split(';').map(|u| u.trim()) {
+            if !self.links.contains(&link.to_string()) && !link.is_empty() {
+                self.links.push(link.to_string());
+            }
+        }
+
+        Ok(())
     }
 }

@@ -29,10 +29,11 @@ CREATE TABLE master_videos (
     description TEXT
 );
 
-CREATE TABLE video_urls (
+CREATE TABLE master_videos_links (
     master_video_id INTEGER NOT NULL REFERENCES master_videos(id),
     url TEXT NOT NULL,
-    PRIMARY KEY (master_video_id, url)
+    PRIMARY KEY (master_video_id, url),
+    CHECK (url <> '')
 );
 
 CREATE TABLE networks_master_videos (
