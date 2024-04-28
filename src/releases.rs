@@ -1,4 +1,4 @@
-use crate::models::Release;
+use crate::models::{Release, ReleaseFile};
 use crate::static_data::RELEASE_DATA;
 use chrono::NaiveDate;
 use color_eyre::{eyre::eyre, Result};
@@ -73,39 +73,52 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
             (None, None)
         };
 
-        let (directory, file_count, size) = if let Some(ref path) = torrent_path {
-            match Torrent::read_from_file(path.clone()) {
-                Ok(torrent) => {
-                    let files = torrent
-                        .files
-                        .ok_or_else(|| eyre!("Could not obtain torrent files"))?;
-                    let first_file = &files[0];
-                    // We want to store the directory below '911datasets.org'.
-                    let directory: String = {
-                        let mut ancestors = first_file.path.ancestors();
-                        let mut second_to_last = None;
-                        let mut last = ancestors.next();
-                        while let Some(current) = ancestors.next() {
-                            second_to_last = last;
-                            last = Some(current);
+        let (directory, file_count, total_size, release_files) =
+            if let Some(ref path) = torrent_path {
+                match Torrent::read_from_file(path.clone()) {
+                    Ok(torrent) => {
+                        let files = torrent
+                            .files
+                            .ok_or_else(|| eyre!("Could not obtain torrent files"))?;
+                        let first_file = &files[0];
+                        // We want to store the directory below '911datasets.org'.
+                        let directory: String = {
+                            let mut ancestors = first_file.path.ancestors();
+                            let mut second_to_last = None;
+                            let mut last = ancestors.next();
+                            while let Some(current) = ancestors.next() {
+                                second_to_last = last;
+                                last = Some(current);
+                            }
+                            second_to_last
+                                .map(|p| p.to_path_buf())
+                                .ok_or_else(|| eyre!("Could not obtain release directory"))?
+                                .to_string_lossy()
+                                .to_string()
+                        };
+
+                        let mut release_files = Vec::new();
+                        let mut total_size = 0;
+                        for file in files.iter() {
+                            release_files.push(ReleaseFile {
+                                id: 0, // The ID will be assigned upon save.
+                                path: file.path.clone(),
+                                size: file.length,
+                            });
+                            total_size += file.length;
                         }
-                        second_to_last
-                            .map(|p| p.to_path_buf())
-                            .ok_or_else(|| eyre!("Could not obtain release directory"))?
-                            .to_string_lossy()
-                            .to_string()
-                    };
-                    let mut size = 0;
-                    for file in files.iter() {
-                        size += file.length;
+                        (
+                            Some(directory),
+                            Some(files.len()),
+                            Some(total_size as u64),
+                            Some(release_files),
+                        )
                     }
-                    (Some(directory), Some(files.len()), Some(size as u64))
+                    Err(_) => (None, None, None, None),
                 }
-                Err(_) => (None, None, None),
-            }
-        } else {
-            (None, None, None)
-        };
+            } else {
+                (None, None, None, None)
+            };
 
         println!("Saving release {name}...");
         let new_release = Release {
@@ -114,8 +127,13 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
             name: name.clone(),
             directory_name: directory,
             file_count: file_count.map(|f| f as i16),
-            size: size.map(|s| s as i64),
+            size: total_size.map(|s| s as i64),
             torrent_url: torrent_url.map(|u| u.to_string()),
+            files: if let Some(files) = release_files {
+                files
+            } else {
+                Vec::new()
+            },
         };
         let saved_release = crate::db::save_release(new_release).await?;
         if let Some(path) = torrent_path {

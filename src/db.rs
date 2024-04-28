@@ -1,5 +1,6 @@
 use crate::models::{
-    Category, Content, Image, MasterVideo, Network, NistTape, NistVideo, Photographer, Release, Tag,
+    Category, Content, Image, MasterVideo, Network, NistTape, NistVideo, Photographer, Release,
+    ReleaseFile, Tag,
 };
 use color_eyre::{eyre::eyre, Result};
 use csv::ReaderBuilder;
@@ -16,29 +17,72 @@ pub async fn establish_connection() -> Result<Pool<Postgres>> {
     Ok(pool)
 }
 
-pub async fn get_release(release_id: i32) -> Result<Release> {
+pub async fn get_release(id: i32) -> Result<Release> {
     let pool = establish_connection().await?;
-    let release = sqlx::query_as!(
-        Release,
-        r#"SELECT id, date, name, directory_name, file_count, size, torrent_url
-           FROM releases
-           WHERE id = $1
+    let rows = sqlx::query!(
+        r#"
+        SELECT r.id AS release_id, r.date, r.name, r.directory_name, r.file_count,
+               r.size AS release_size, r.torrent_url,
+               f.id AS file_id, f.path, f.size AS file_size
+        FROM releases r
+        LEFT JOIN release_files f ON r.id = f.release_id
+        WHERE r.id = $1;
         "#,
-        release_id
+        id
     )
-    .fetch_one(&pool)
+    .fetch_all(&pool)
     .await?;
+
+    if rows.is_empty() {
+        return Err(eyre!("Could not find release with ID {id}"));
+    }
+
+    let mut release = Release {
+        id: rows[0].release_id,
+        date: rows[0].date,
+        name: rows[0].name.clone(),
+        directory_name: rows[0].directory_name.clone(),
+        file_count: rows[0].file_count,
+        size: rows[0].release_size,
+        torrent_url: rows[0].torrent_url.clone(),
+        files: Vec::new(),
+    };
+
+    for row in rows {
+        release.files.push(ReleaseFile {
+            id: row.file_id,
+            path: PathBuf::from(row.path.unwrap()),
+            size: row.file_size.unwrap(),
+        });
+    }
+
     Ok(release)
 }
 
+/// Get all releases from the database.
+///
+/// The files for the releases are not included.
 pub async fn get_releases() -> Result<Vec<Release>> {
     let pool = establish_connection().await?;
-    let releases = sqlx::query_as!(
-        Release,
+    let rows = sqlx::query!(
         "SELECT id, date, name, directory_name, file_count, size, torrent_url FROM releases"
     )
     .fetch_all(&pool)
     .await?;
+
+    let mut releases = Vec::new();
+    for row in rows {
+        releases.push(Release {
+            id: row.id,
+            date: row.date,
+            name: row.name,
+            directory_name: row.directory_name,
+            file_count: row.file_count,
+            size: row.size,
+            torrent_url: row.torrent_url,
+            files: Vec::new(),
+        });
+    }
     Ok(releases)
 }
 
@@ -533,13 +577,18 @@ pub async fn save_image(content: Content, image: Image) -> Result<Image> {
     Ok(new_image)
 }
 
+/// Saves a NIST release in the database.
+///
+/// Saving a release does not need to be an 'upsert' operation because release content is static.
+/// They should only be initialised once.
 pub async fn save_release(release: Release) -> Result<Release> {
     let pool = establish_connection().await?;
-    let new_release = sqlx::query_as!(
-        Release,
+    let mut tx = pool.begin().await?;
+
+    let release_id = sqlx::query!(
         "INSERT INTO releases (date, name, directory_name, file_count, size, torrent_url)
          VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, date, name, directory_name, file_count, size, torrent_url",
+         RETURNING id",
         release.date,
         release.name,
         release.directory_name,
@@ -547,9 +596,31 @@ pub async fn save_release(release: Release) -> Result<Release> {
         release.size,
         release.torrent_url
     )
-    .fetch_one(&pool)
-    .await?;
-    Ok(new_release)
+    .fetch_one(&mut *tx)
+    .await?
+    .id;
+
+    let mut updated_release = release.clone();
+    updated_release.id = release_id;
+
+    for i in 0..release.files.len() {
+        let id = sqlx::query!(
+            "INSERT INTO release_files (path, size, release_id)
+             VALUES ($1, $2, $3)
+             RETURNING id",
+            &release.files[i].path.to_string_lossy(),
+            release.files[i].size,
+            release_id
+        )
+        .fetch_one(&mut *tx)
+        .await?
+        .id;
+        updated_release.files[i].id = id;
+    }
+
+    tx.commit().await?;
+
+    Ok(updated_release)
 }
 
 pub async fn save_torrent(release_id: i32, torrent_path: &PathBuf) -> Result<()> {

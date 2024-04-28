@@ -6,4 +6,11 @@ CREATE TABLE releases (
     file_count SMALLINT,
     size BIGINT,
     torrent_url VARCHAR
-)
+);
+
+CREATE TABLE release_files (
+    id SERIAL PRIMARY KEY,
+    path VARCHAR,
+    size BIGINT,
+    release_id INTEGER NOT NULL REFERENCES releases(id)
+);

@@ -8,7 +8,14 @@ use std::path::PathBuf;
 use std::process::Command;
 use thiserror::Error;
 
-#[derive(FromRow)]
+#[derive(Clone)]
+pub struct ReleaseFile {
+    pub id: i32,
+    pub path: PathBuf,
+    pub size: i64,
+}
+
+#[derive(Clone)]
 pub struct Release {
     pub id: i32,
     pub date: NaiveDate,
@@ -17,6 +24,7 @@ pub struct Release {
     pub file_count: Option<i16>,
     pub size: Option<i64>,
     pub torrent_url: Option<String>,
+    pub files: Vec<ReleaseFile>,
 }
 
 #[derive(sqlx::Type)]
