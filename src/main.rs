@@ -1,6 +1,5 @@
 pub mod cumulus;
 pub mod db;
-pub mod error;
 pub mod images;
 pub mod models;
 pub mod releases;

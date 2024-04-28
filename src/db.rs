@@ -1,7 +1,7 @@
-use crate::error::{Error, Result};
 use crate::models::{
     Category, Content, Image, MasterVideo, Network, NistTape, NistVideo, Photographer, Release, Tag,
 };
+use color_eyre::{eyre::eyre, Result};
 use csv::ReaderBuilder;
 use dotenvy::dotenv;
 use sqlx::pool::Pool;
@@ -77,7 +77,7 @@ pub async fn get_master_video(id: i32) -> Result<MasterVideo> {
     .await?;
 
     if rows.is_empty() {
-        return Err(Error::MasterVideoNotFound(id));
+        return Err(eyre!("Could not find master video with ID {id}"));
     }
 
     let mut video = MasterVideo {
