@@ -1,6 +1,6 @@
 use crate::models::{
     Category, Content, Image, MasterVideo, Network, NistTape, NistVideo, Photographer, Release,
-    ReleaseFile, Tag,
+    ReleaseFile, Tag, Video,
 };
 use color_eyre::{eyre::eyre, Result};
 use csv::ReaderBuilder;
@@ -441,6 +441,202 @@ pub async fn save_master_video(video: MasterVideo) -> Result<MasterVideo> {
                 ON CONFLICT DO NOTHING"#,
             video_id,
             url
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(updated_video)
+}
+
+pub async fn save_video(video: Video) -> Result<Video> {
+    let pool = establish_connection().await?;
+    let mut tx = pool.begin().await?;
+
+    // Unfortunately, you need to handle the special case where the ID is zero, which is for a new
+    // record. Postgres allows the insertion of 0, despite the fact that the ID column is defined
+    // as `SERIAL`.
+    let video_id = if video.id == 0 {
+        let video_id = sqlx::query!(
+            r#"INSERT INTO videos (
+                    title, description, timestamps, duration, link, nist_notes, master_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               RETURNING id"#,
+            video.title,
+            video.description,
+            video.timestamps,
+            video.duration,
+            video.link,
+            video.nist_notes,
+            video.master.id,
+        )
+        .fetch_one(&mut *tx)
+        .await?
+        .id;
+        video_id
+    } else {
+        let video_id = sqlx::query!(
+            r#"INSERT INTO videos (
+                    id, title, description, timestamps, duration, link, nist_notes, master_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               ON CONFLICT (id) DO UPDATE SET
+                   title = EXCLUDED.title,
+                   description = EXCLUDED.description,
+                   timestamps = EXCLUDED.timestamps,
+                   duration = EXCLUDED.duration,
+                   link = EXCLUDED.link,
+                   nist_notes = EXCLUDED.nist_notes,
+                   master_id = EXCLUDED.master_id
+               RETURNING id"#,
+            video.id,
+            video.title,
+            video.description,
+            video.timestamps,
+            video.duration,
+            video.link,
+            video.nist_notes,
+            video.master.id,
+        )
+        .fetch_one(&mut *tx)
+        .await?
+        .id;
+        video_id
+    };
+
+    let mut updated_video = video.clone();
+    updated_video.id = video_id;
+
+    for videographer in video.videographers.iter() {
+        let row = sqlx::query!(
+            "SELECT id FROM videographers WHERE name = $1",
+            videographer.name
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let videographer_id = if let Some(row) = row {
+            row.id
+        } else {
+            sqlx::query!(
+                r#"INSERT INTO videographers (name) VALUES ($1) RETURNING id"#,
+                videographer.name
+            )
+            .fetch_one(&mut *tx)
+            .await?
+            .id
+        };
+
+        let updated_videographer = updated_video
+            .videographers
+            .iter_mut()
+            .find(|n| n.name == videographer.name)
+            .unwrap();
+        updated_videographer.id = videographer_id;
+
+        sqlx::query!(
+            r#"INSERT INTO videos_videographers (video_id, videographer_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
+            video_id,
+            videographer_id
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    for reporter in video.reporters.iter() {
+        let row = sqlx::query!("SELECT id FROM reporters WHERE name = $1", reporter.name)
+            .fetch_optional(&mut *tx)
+            .await?;
+
+        let reporter_id = if let Some(row) = row {
+            row.id
+        } else {
+            sqlx::query!(
+                "INSERT INTO reporters (name) VALUES ($1) RETURNING id",
+                reporter.name
+            )
+            .fetch_one(&mut *tx)
+            .await?
+            .id
+        };
+
+        let updated_reporter = updated_video
+            .reporters
+            .iter_mut()
+            .find(|r| r.name == reporter.name)
+            .unwrap();
+        updated_reporter.id = reporter_id;
+
+        sqlx::query!(
+            r#"INSERT INTO videos_reporters (video_id, reporter_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
+            video_id,
+            reporter_id
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    for person in video.people.iter() {
+        let row = sqlx::query!("SELECT id FROM people WHERE name = $1", person.name)
+            .fetch_optional(&mut *tx)
+            .await?;
+
+        let person_id = if let Some(row) = row {
+            row.id
+        } else {
+            sqlx::query!(
+                r#"INSERT INTO people (name) VALUES ($1) RETURNING id"#,
+                person.name
+            )
+            .fetch_one(&mut *tx)
+            .await?
+            .id
+        };
+
+        let updated_person = updated_video
+            .people
+            .iter_mut()
+            .find(|p| p.name == person.name)
+            .unwrap();
+        updated_person.id = person_id;
+
+        sqlx::query!(
+            r#"INSERT INTO videos_people (video_id, person_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
+            video_id,
+            person_id
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    for jt in video.jumper_timestamps.iter() {
+        let jt_id = if jt.id == 0 {
+            sqlx::query!(
+                r#"INSERT INTO jumper_timestamps (timestamp)
+                    VALUES ($1)
+                    RETURNING id"#,
+                jt.timestamp
+            )
+            .fetch_one(&mut *tx)
+            .await?
+            .id
+        } else {
+            jt.id
+        };
+
+        sqlx::query!(
+            r#"INSERT INTO videos_jumper_timestamps (video_id, jumper_timestamp_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
+            video_id,
+            jt_id
         )
         .execute(&mut *tx)
         .await?;

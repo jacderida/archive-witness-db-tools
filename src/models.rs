@@ -1,9 +1,9 @@
 use crate::cumulus::CumulusImage;
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{Duration, NaiveDate, NaiveDateTime};
 use color_eyre::{eyre::eyre, Result};
 use image::GenericImageView;
 use magick_rust::{magick_wand_genesis, MagickWand};
-use sqlx::FromRow;
+use sqlx::{postgres::types::PgInterval, FromRow};
 use std::path::PathBuf;
 use std::process::Command;
 use thiserror::Error;
@@ -483,4 +483,395 @@ impl MasterVideo {
 
         Ok(())
     }
+}
+
+#[derive(Clone, FromRow)]
+pub struct Videographer {
+    pub id: i32,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, FromRow)]
+pub struct Reporter {
+    pub id: i32,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, FromRow)]
+pub struct Person {
+    pub id: i32,
+    pub name: String,
+    pub historical_title: String,
+}
+
+#[derive(Clone, FromRow)]
+pub struct JumperTimestamp {
+    pub id: i32,
+    pub timestamp: PgInterval,
+}
+
+#[derive(Clone, Default)]
+pub struct Video {
+    pub id: i32,
+    pub master: MasterVideo,
+    pub title: String,
+    pub description: Option<String>,
+    pub timestamps: Option<String>,
+    pub duration: Option<PgInterval>,
+    pub link: Option<String>,
+    pub nist_notes: Option<String>,
+    pub videographers: Vec<Videographer>,
+    pub reporters: Vec<Reporter>,
+    pub people: Vec<Person>,
+    pub jumper_timestamps: Vec<JumperTimestamp>,
+}
+
+impl Video {
+    pub fn print(&self) {
+        println!("ID: {}", self.id);
+        println!("---");
+        println!("Master: {}", self.master.title);
+        println!("---");
+        println!("Title: {}", self.title);
+        println!("---");
+        println!(
+            "Description:\n{}",
+            self.description.as_ref().unwrap_or(&String::new())
+        );
+        println!("---");
+        println!(
+            "Timestamps:\n{}",
+            self.timestamps.as_ref().unwrap_or(&String::new())
+        );
+        println!("---");
+
+        if let Some(duration) = &self.duration {
+            let d = interval_to_duration(&duration);
+            println!(
+                "Duration: {:02}:{:02}:{:02}",
+                d.num_hours(),
+                d.num_minutes() % 60,
+                d.num_seconds() % 60
+            );
+        } else {
+            println!("Duration:");
+        }
+        println!("---");
+
+        println!("Link: {}", self.link.as_ref().unwrap_or(&String::new()));
+        println!("---");
+        println!(
+            "NIST Notes: {}",
+            self.nist_notes.as_ref().unwrap_or(&String::new())
+        );
+        println!("---");
+
+        if self.videographers.is_empty() {
+            println!("Videographers:");
+        } else {
+            println!(
+                "Videographers: {}",
+                self.videographers
+                    .iter()
+                    .map(|v| v.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";")
+            );
+        }
+        println!("---");
+
+        if self.reporters.is_empty() {
+            println!("Reporters:");
+        } else {
+            println!(
+                "Reporters: {}",
+                self.reporters
+                    .iter()
+                    .map(|v| v.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";")
+            );
+        }
+        println!("---");
+
+        if self.people.is_empty() {
+            println!("People:");
+        } else {
+            println!(
+                "People: {}",
+                self.people
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";")
+            );
+        }
+        println!("---");
+
+        if self.jumper_timestamps.is_empty() {
+            println!("Jumpers:");
+        } else {
+            println!(
+                "Jumpers: {}",
+                self.jumper_timestamps
+                    .iter()
+                    .map(|t| interval_to_duration(&t.timestamp).to_string())
+                    .collect::<Vec<String>>()
+                    .join(";")
+            );
+        }
+    }
+
+    pub fn to_editor(&self, master_videos: &Vec<MasterVideo>) -> String {
+        let mut template = String::new();
+
+        template.push_str("Master Video: ");
+        if self.master.id == 0 {
+            template.push_str("\n## SELECT ONE AND DELETE THE OTHERS ##\n");
+            for video in master_videos.iter() {
+                template.push_str(&format!("{}\n", video.title));
+            }
+        } else {
+            template.push_str(&self.master.title);
+        }
+        template.push_str("\n---\n");
+
+        template.push_str("Title: ");
+        if !self.title.is_empty() {
+            template.push_str(&self.title);
+        }
+        template.push_str("\n---\n");
+
+        // The description field is very likely to be a multiline string, so the actual value can
+        // be on a new line.
+        template.push_str("Description:\n");
+        if let Some(description) = &self.description {
+            template.push_str(&description);
+        }
+        template.push_str("\n---\n");
+
+        // The timestamps field is very likely to be a multiline string, so the actual value can
+        // be on a new line.
+        template.push_str("Timestamps:\n");
+        if let Some(description) = &self.description {
+            template.push_str(&description);
+        }
+        template.push_str("\n---\n");
+
+        template.push_str("Duration: ");
+        if let Some(duration) = &self.duration {
+            template.push_str(&duration_to_string(&interval_to_duration(duration)));
+        }
+        template.push_str("\n---\n");
+
+        template.push_str("Link: ");
+        if let Some(link) = &self.link {
+            template.push_str(&link);
+        }
+        template.push_str("\n---\n");
+
+        template.push_str("NIST Notes: ");
+        if let Some(nist_nodes) = &self.nist_notes {
+            template.push_str(&nist_nodes);
+        }
+        template.push_str("\n---\n");
+
+        template.push_str("Videographers: ");
+        if !self.videographers.is_empty() {
+            template.push_str(
+                &self
+                    .videographers
+                    .iter()
+                    .map(|v| v.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";"),
+            );
+        }
+        template.push_str("\n---\n");
+
+        template.push_str("Reporters: ");
+        if !self.reporters.is_empty() {
+            template.push_str(
+                &self
+                    .reporters
+                    .iter()
+                    .map(|r| r.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";"),
+            );
+        }
+        template.push_str("\n---\n");
+
+        template.push_str("People: ");
+        if !self.people.is_empty() {
+            template.push_str(
+                &self
+                    .people
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<String>>()
+                    .join(";"),
+            );
+        };
+        template.push_str("\n---\n");
+
+        template.push_str("Jumpers: ");
+        if !self.jumper_timestamps.is_empty() {
+            template.push_str(
+                &self
+                    .jumper_timestamps
+                    .iter()
+                    .map(|r| interval_to_duration(&r.timestamp).to_string())
+                    .collect::<Vec<String>>()
+                    .join(";"),
+            );
+        }
+
+        template
+    }
+
+    pub fn update_from_editor(&mut self, edited: &str) -> Result<String> {
+        let parts: Vec<_> = edited.split("---\n").collect();
+        if parts.len() != 11 {
+            return Err(eyre!("Input string does not match expected format"));
+        }
+
+        let master_title = parts[0]
+            .trim_start_matches("Master Title: ")
+            .trim()
+            .to_string();
+        self.title = parts[1].trim_start_matches("Title: ").trim().to_string();
+
+        let description = parts[2].trim_start_matches("Description: ").trim();
+        self.description = if description.is_empty() {
+            None
+        } else {
+            Some(description.to_string())
+        };
+
+        let timestamps = parts[3].trim_start_matches("Timestamps: ").trim();
+        self.timestamps = if timestamps.is_empty() {
+            None
+        } else {
+            Some(timestamps.to_string())
+        };
+
+        let duration = parts[4].trim_start_matches("Duration: ").trim();
+        self.duration = if duration.is_empty() {
+            None
+        } else {
+            let duration = parse_duration(duration);
+            let interval = PgInterval::try_from(duration)
+                .map_err(|_| eyre!("Could not convert duration to PgInterval"))?;
+            Some(interval)
+        };
+
+        let link = parts[5].trim_start_matches("Link: ").trim();
+        self.link = if link.is_empty() {
+            None
+        } else {
+            Some(link.to_string())
+        };
+
+        let nist_notes = parts[6].trim_start_matches("NIST Notes: ").trim();
+        self.nist_notes = if nist_notes.is_empty() {
+            None
+        } else {
+            Some(nist_notes.to_string())
+        };
+
+        let videographers = parts[7].trim_start_matches("Videographers: ").trim();
+        if !videographers.is_empty() {
+            for videographer in videographers.split(';').map(|v| v.trim()) {
+                if let None = self.videographers.iter().find(|v| v.name == videographer) {
+                    self.videographers.push(Videographer {
+                        id: 0, // The ID will be applied when the video is saved.
+                        name: videographer.to_string(),
+                    });
+                }
+            }
+        }
+
+        let reporters = parts[8].trim_start_matches("Reporters: ").trim();
+        if !reporters.is_empty() {
+            for reporter in reporters.split(';').map(|r| r.trim()) {
+                if let None = self.reporters.iter().find(|r| r.name == reporter) {
+                    self.reporters.push(Reporter {
+                        id: 0, // The ID will be applied when the video is saved.
+                        name: reporter.to_string(),
+                    });
+                }
+            }
+        }
+
+        let people = parts[9].trim_start_matches("People: ").trim();
+        if !people.is_empty() {
+            for person in people.split(';').map(|p| p.trim()) {
+                if let None = self.people.iter().find(|p| p.name == person) {
+                    self.people.push(Person {
+                        id: 0, // The ID will be applied when the video is saved.
+                        name: person.to_string(),
+                        historical_title: String::new(),
+                    });
+                }
+            }
+        }
+
+        let jumper_timestamps = parts[10].trim_start_matches("Jumpers: ").trim();
+        if !jumper_timestamps.is_empty() {
+            for timestamp in jumper_timestamps.split(';').map(|t| {
+                let time = t.trim();
+                let duration = parse_duration(time);
+                PgInterval::try_from(duration).unwrap()
+            }) {
+                if let None = self
+                    .jumper_timestamps
+                    .iter()
+                    .find(|p| p.timestamp == timestamp)
+                {
+                    self.jumper_timestamps.push(JumperTimestamp {
+                        id: 0, // The ID will be applied when the video is saved.
+                        timestamp,
+                    });
+                }
+            }
+        }
+
+        Ok(master_title)
+    }
+}
+
+fn interval_to_duration(interval: &PgInterval) -> Duration {
+    let total_microseconds = interval.microseconds;
+    let seconds = total_microseconds / 1_000_000;
+    let nanoseconds = (total_microseconds % 1_000_000) * 1_000;
+    Duration::seconds(seconds) + Duration::nanoseconds(nanoseconds)
+}
+
+fn parse_duration(time: &str) -> Duration {
+    let parts: Vec<&str> = time.split(':').collect();
+    if parts.len() == 3 {
+        let hours = parts[0].parse::<i64>().unwrap();
+        let minutes = parts[1].parse::<i64>().unwrap();
+        let seconds_parts: Vec<&str> = parts[2].split('.').collect();
+        let seconds = seconds_parts[0].parse::<i64>().unwrap();
+        let millis = if seconds_parts.len() > 1 {
+            seconds_parts[1].parse::<i64>().unwrap()
+        } else {
+            0
+        };
+        return Duration::milliseconds(
+            hours * 3600_000 + minutes * 60_000 + seconds * 1000 + millis,
+        );
+    }
+    Duration::zero()
+}
+
+fn duration_to_string(d: &Duration) -> String {
+    format!(
+        "{:02}:{:02}:{:02}",
+        d.num_hours(),
+        d.num_minutes() % 60,
+        d.num_seconds() % 60
+    )
 }

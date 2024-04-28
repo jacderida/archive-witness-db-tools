@@ -8,10 +8,10 @@ pub mod static_data;
 use crate::cumulus::*;
 use crate::db::*;
 use crate::images::*;
-use crate::models::{MasterVideo, Network};
+use crate::models::{MasterVideo, Network, Video};
 use crate::releases::*;
 use clap::{Parser, Subcommand};
-use color_eyre::Result;
+use color_eyre::{eyre::eyre, Result};
 use dialoguer::Editor;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -178,6 +178,13 @@ enum ReleasesSubcommands {
 /// Manage videos
 #[derive(Subcommand, Debug)]
 enum VideosSubcommands {
+    /// Add a video using an interactive editor or from a templated file.
+    #[clap(name = "add")]
+    Add {
+        /// Path to a file containing a populated video template.
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
     /// Build the master video list from the NIST video list
     #[clap(name = "build-master")]
     BuildMaster {},
@@ -364,6 +371,38 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Videos(videos_command) => match videos_command {
+            VideosSubcommands::Add { path } => {
+                let master_videos = db::get_master_videos().await?;
+
+                let mut video = Video::default();
+                let master_title = if let Some(path) = path {
+                    let edited = std::fs::read_to_string(path)?;
+                    let master_title = video.update_from_editor(&edited)?;
+                    master_title
+                } else {
+                    let to_edit = video.to_editor(&master_videos);
+                    if let Some(edited) = Editor::new().edit(&to_edit)? {
+                        let master_title = video.update_from_editor(&edited)?;
+                        master_title
+                    } else {
+                        println!("New record will not be added to the database");
+                        return Ok(());
+                    }
+                };
+
+                if let Some(master) = master_videos.iter().find(|m| m.title == master_title) {
+                    video.master = master.clone();
+                } else {
+                    return Err(eyre!("There is no master video titled '{master_title}'"));
+                }
+
+                let updated = db::save_video(video).await?;
+                println!("===========");
+                println!("Saved video");
+                println!("===========");
+                updated.print();
+                Ok(())
+            }
             VideosSubcommands::BuildMaster {} => {
                 println!("Building master video list from the NIST videos and tapes list");
                 let videos = get_nist_videos().await?;
