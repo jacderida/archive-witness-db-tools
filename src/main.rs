@@ -1,5 +1,6 @@
 pub mod cumulus;
 pub mod db;
+pub mod helpers;
 pub mod images;
 pub mod models;
 pub mod releases;

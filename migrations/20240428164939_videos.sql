@@ -53,3 +53,9 @@ CREATE TABLE videos_jumper_timestamps (
     jumper_timestamp_id INTEGER NOT NULL REFERENCES jumper_timestamps(id),
     PRIMARY KEY (video_id, jumper_timestamp_id)
 );
+
+CREATE TABLE videos_release_files (
+    video_id INTEGER NOT NULL REFERENCES videos(id),
+    release_file_id INTEGER NOT NULL REFERENCES release_files(id),
+    PRIMARY KEY (video_id, release_file_id)
+);

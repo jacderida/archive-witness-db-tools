@@ -1,5 +1,8 @@
-use crate::models::{Release, ReleaseFile};
-use crate::static_data::RELEASE_DATA;
+use crate::{
+    helpers::human_readable_size,
+    models::{Release, ReleaseFile},
+    static_data::RELEASE_DATA,
+};
 use chrono::NaiveDate;
 use color_eyre::{eyre::eyre, Result};
 use csv::Writer;
@@ -339,20 +342,4 @@ fn is_video_file(file_path: &PathBuf) -> bool {
                 .any(|&ve| ve.eq_ignore_ascii_case(ext))
         })
         .unwrap_or(false)
-}
-
-fn human_readable_size(size: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = 1024 * KB;
-    const GB: u64 = 1024 * MB;
-
-    if size >= GB {
-        format!("{:.2} GB", size as f64 / GB as f64)
-    } else if size >= MB {
-        format!("{:.2} MB", size as f64 / MB as f64)
-    } else if size >= KB {
-        format!("{:.2} KB", size as f64 / KB as f64)
-    } else {
-        format!("{} bytes", size)
-    }
 }

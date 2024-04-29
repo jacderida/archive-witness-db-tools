@@ -669,6 +669,28 @@ pub async fn save_video(video: Video) -> Result<Video> {
         .await?;
     }
 
+    for i in 0..video.nist_files.len() {
+        let path = video.nist_files[i].0.clone();
+        let row = sqlx::query!(
+            "SELECT id, path, size FROM release_files WHERE path = $1",
+            &path.to_string_lossy()
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"INSERT INTO videos_release_files (video_id, release_file_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING"#,
+            video_id,
+            row.id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        updated_video.nist_files[i] = (path, row.size as u64);
+    }
+
     tx.commit().await?;
 
     Ok(updated_video)

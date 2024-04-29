@@ -1,5 +1,11 @@
-use crate::cumulus::CumulusImage;
-use chrono::{Duration, NaiveDate, NaiveDateTime};
+use crate::{
+    cumulus::CumulusImage,
+    helpers::{
+        duration_to_string, human_readable_size, interval_to_duration, parse_duration,
+        strip_first_two_directories,
+    },
+};
+use chrono::{NaiveDate, NaiveDateTime};
 use color_eyre::{eyre::eyre, Result};
 use image::GenericImageView;
 use magick_rust::{magick_wand_genesis, MagickWand};
@@ -524,6 +530,7 @@ pub struct Video {
     pub reporters: Vec<Reporter>,
     pub people: Vec<Person>,
     pub jumper_timestamps: Vec<JumperTimestamp>,
+    pub nist_files: Vec<(PathBuf, u64)>,
 }
 
 impl Video {
@@ -619,6 +626,19 @@ impl Video {
                     .collect::<Vec<String>>()
                     .join(";")
             );
+        }
+        println!("---");
+
+        if self.nist_files.is_empty() {
+            println!("NIST Files:");
+        } else {
+            for (path, size) in self.nist_files.iter() {
+                println!(
+                    "{} ({})",
+                    strip_first_two_directories(path).to_string_lossy(),
+                    human_readable_size(*size)
+                );
+            }
         }
     }
 
@@ -726,37 +746,59 @@ impl Video {
                     .join(";"),
             );
         }
+        template.push_str("\n---\n");
+
+        template.push_str("NIST Files: ");
+        if !self.nist_files.is_empty() {
+            for (path, _) in self.nist_files.iter() {
+                template.push_str(&format!("{}\n", path.to_string_lossy()));
+            }
+        }
 
         template
     }
 
     pub fn update_from_editor(&mut self, edited: &str) -> Result<String> {
         let parts: Vec<_> = edited.split("---\n").collect();
-        if parts.len() != 11 {
+        if parts.len() != 12 {
             return Err(eyre!("Input string does not match expected format"));
         }
 
         let master_title = parts[0]
             .trim_start_matches("Master Title: ")
+            .trim_start_matches(':')
             .trim()
             .to_string();
-        self.title = parts[1].trim_start_matches("Title: ").trim().to_string();
+        self.title = parts[1]
+            .trim_start_matches("Title:")
+            .trim_start_matches(':')
+            .trim()
+            .to_string();
 
-        let description = parts[2].trim_start_matches("Description: ").trim();
+        let description = parts[2]
+            .trim_start_matches("Description:")
+            .trim_start_matches(':')
+            .trim();
         self.description = if description.is_empty() {
             None
         } else {
             Some(description.to_string())
         };
 
-        let timestamps = parts[3].trim_start_matches("Timestamps: ").trim();
+        let timestamps = parts[3]
+            .trim_start_matches("Timestamps:")
+            .trim_start_matches(':')
+            .trim();
         self.timestamps = if timestamps.is_empty() {
             None
         } else {
             Some(timestamps.to_string())
         };
 
-        let duration = parts[4].trim_start_matches("Duration: ").trim();
+        let duration = parts[4]
+            .trim_start_matches("Duration:")
+            .trim_start_matches(':')
+            .trim();
         self.duration = if duration.is_empty() {
             None
         } else {
@@ -766,21 +808,30 @@ impl Video {
             Some(interval)
         };
 
-        let link = parts[5].trim_start_matches("Link: ").trim();
+        let link = parts[5]
+            .trim_start_matches("Link:")
+            .trim_start_matches(':')
+            .trim();
         self.link = if link.is_empty() {
             None
         } else {
             Some(link.to_string())
         };
 
-        let nist_notes = parts[6].trim_start_matches("NIST Notes: ").trim();
+        let nist_notes = parts[6]
+            .trim_start_matches("NIST Notes:")
+            .trim_start_matches(':')
+            .trim();
         self.nist_notes = if nist_notes.is_empty() {
             None
         } else {
             Some(nist_notes.to_string())
         };
 
-        let videographers = parts[7].trim_start_matches("Videographers: ").trim();
+        let videographers = parts[7]
+            .trim_start_matches("Videographers:")
+            .trim_start_matches(':')
+            .trim();
         if !videographers.is_empty() {
             for videographer in videographers.split(';').map(|v| v.trim()) {
                 if let None = self.videographers.iter().find(|v| v.name == videographer) {
@@ -792,7 +843,10 @@ impl Video {
             }
         }
 
-        let reporters = parts[8].trim_start_matches("Reporters: ").trim();
+        let reporters = parts[8]
+            .trim_start_matches("Reporters:")
+            .trim_start_matches(':')
+            .trim();
         if !reporters.is_empty() {
             for reporter in reporters.split(';').map(|r| r.trim()) {
                 if let None = self.reporters.iter().find(|r| r.name == reporter) {
@@ -804,7 +858,10 @@ impl Video {
             }
         }
 
-        let people = parts[9].trim_start_matches("People: ").trim();
+        let people = parts[9]
+            .trim_start_matches("People:")
+            .trim_start_matches(':')
+            .trim();
         if !people.is_empty() {
             for person in people.split(';').map(|p| p.trim()) {
                 if let None = self.people.iter().find(|p| p.name == person) {
@@ -817,7 +874,10 @@ impl Video {
             }
         }
 
-        let jumper_timestamps = parts[10].trim_start_matches("Jumpers: ").trim();
+        let jumper_timestamps = parts[10]
+            .trim_start_matches("Jumpers:")
+            .trim_start_matches(':')
+            .trim();
         if !jumper_timestamps.is_empty() {
             for timestamp in jumper_timestamps.split(';').map(|t| {
                 let time = t.trim();
@@ -837,41 +897,16 @@ impl Video {
             }
         }
 
+        let nist_files = parts[11]
+            .trim_start_matches("NIST Files:")
+            .trim_start_matches(':')
+            .trim();
+        if !nist_files.is_empty() {
+            for path in nist_files.split('\n').map(|p| PathBuf::from(p)) {
+                self.nist_files.push((path, 0));
+            }
+        }
+
         Ok(master_title)
     }
-}
-
-fn interval_to_duration(interval: &PgInterval) -> Duration {
-    let total_microseconds = interval.microseconds;
-    let seconds = total_microseconds / 1_000_000;
-    let nanoseconds = (total_microseconds % 1_000_000) * 1_000;
-    Duration::seconds(seconds) + Duration::nanoseconds(nanoseconds)
-}
-
-fn parse_duration(time: &str) -> Duration {
-    let parts: Vec<&str> = time.split(':').collect();
-    if parts.len() == 3 {
-        let hours = parts[0].parse::<i64>().unwrap();
-        let minutes = parts[1].parse::<i64>().unwrap();
-        let seconds_parts: Vec<&str> = parts[2].split('.').collect();
-        let seconds = seconds_parts[0].parse::<i64>().unwrap();
-        let millis = if seconds_parts.len() > 1 {
-            seconds_parts[1].parse::<i64>().unwrap()
-        } else {
-            0
-        };
-        return Duration::milliseconds(
-            hours * 3600_000 + minutes * 60_000 + seconds * 1000 + millis,
-        );
-    }
-    Duration::zero()
-}
-
-fn duration_to_string(d: &Duration) -> String {
-    format!(
-        "{:02}:{:02}:{:02}",
-        d.num_hours(),
-        d.num_minutes() % 60,
-        d.num_seconds() % 60
-    )
 }
