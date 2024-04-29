@@ -8,7 +8,7 @@ use dotenvy::dotenv;
 use sqlx::pool::Pool;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Postgres;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 pub async fn establish_connection() -> Result<Pool<Postgres>> {
     dotenv().ok();
@@ -84,6 +84,33 @@ pub async fn get_releases() -> Result<Vec<Release>> {
         });
     }
     Ok(releases)
+}
+
+pub async fn find_release_files(search_string: &str) -> Result<HashMap<String, Vec<PathBuf>>> {
+    let pool = establish_connection().await?;
+    let rows = sqlx::query!(
+        r#"
+        SELECT r.name AS release_name, rf.path, rf.size
+        FROM release_files rf
+        JOIN releases r ON r.id = rf.release_id
+        WHERE rf.path LIKE $1;
+        "#,
+        format!("%{}%", search_string)
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    if rows.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut map: HashMap<String, Vec<PathBuf>> = HashMap::new();
+    for row in rows {
+        map.entry(row.release_name)
+            .or_insert_with(Vec::new)
+            .push(PathBuf::from(row.path));
+    }
+    Ok(map)
 }
 
 #[derive(sqlx::FromRow)]

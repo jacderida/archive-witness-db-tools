@@ -150,6 +150,14 @@ enum ReleasesSubcommands {
         #[arg(long)]
         path: PathBuf,
     },
+    /// Find any files that contain references to a search string.
+    ///
+    /// For example, you might be looking for files with the term "42A0293 - G27D23" in their path.
+    #[clap(name = "find")]
+    Find {
+        /// The term to search for.
+        term: String,
+    },
     /// Initialise the 911datasets.org releases
     #[clap(name = "init")]
     Init {
@@ -356,6 +364,17 @@ async fn main() -> Result<()> {
         Commands::Releases(releases_command) => match releases_command {
             ReleasesSubcommands::DownloadTorrents { path } => {
                 download_torrents(&path).await?;
+                Ok(())
+            }
+            ReleasesSubcommands::Find { term } => {
+                let results = db::find_release_files(&term).await?;
+                for (release_name, files) in results {
+                    println!("{release_name}:");
+                    for file in files {
+                        println!("{}", file.to_string_lossy());
+                    }
+                    println!();
+                }
                 Ok(())
             }
             ReleasesSubcommands::Init { torrent_path } => {
