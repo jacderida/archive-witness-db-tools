@@ -125,7 +125,11 @@ enum ImagesSubcommands {
 enum MasterVideosSubcommands {
     /// Add a master video using an interactive editor.
     #[clap(name = "add")]
-    Add {},
+    Add {
+        /// Path to a file containing a populated video template.
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
     /// Edit a master video using an interactive editor.
     #[clap(name = "edit")]
     Edit {
@@ -305,11 +309,19 @@ async fn main() -> Result<()> {
             }
         },
         Commands::MasterVideos(master_videos_command) => match master_videos_command {
-            MasterVideosSubcommands::Add {} => {
+            MasterVideosSubcommands::Add { path } => {
                 let mut master_video = MasterVideo::default();
-                let to_edit = master_video.to_editor();
-                if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
+                if let Some(path) = path {
+                    let edited = std::fs::read_to_string(path)?;
                     master_video.update_from_editor(&edited)?;
+                } else {
+                    let to_edit = master_video.to_editor();
+                    if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
+                        master_video.update_from_editor(&edited)?;
+                    } else {
+                        println!("New record will not be added to the database");
+                        return Ok(());
+                    }
                 }
 
                 let updated = db::save_master_video(master_video).await?;
