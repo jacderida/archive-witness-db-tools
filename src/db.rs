@@ -1,6 +1,6 @@
 use crate::models::{
-    Category, Content, Image, MasterVideo, Network, NistTape, NistVideo, Photographer, Release,
-    ReleaseFile, Tag, Video,
+    Category, Content, Image, JumperTimestamp, MasterVideo, Network, NistTape, NistVideo, Person,
+    Photographer, Release, ReleaseFile, Reporter, Tag, Video, Videographer,
 };
 use color_eyre::{eyre::eyre, Result};
 use csv::ReaderBuilder;
@@ -126,8 +126,13 @@ struct VideoQueryResult {
     url: Option<String>,
 }
 
-pub async fn get_master_video(id: i32) -> Result<MasterVideo> {
-    let pool = establish_connection().await?;
+pub async fn get_master_video(id: i32, pool: Option<Pool<Postgres>>) -> Result<MasterVideo> {
+    let pool = if let Some(p) = pool {
+        p
+    } else {
+        establish_connection().await?
+    };
+
     let rows = sqlx::query_as!(
         VideoQueryResult,
         "SELECT 
@@ -243,6 +248,117 @@ pub async fn get_master_videos() -> Result<Vec<MasterVideo>> {
     videos.sort_by(|a, b| a.id.cmp(&b.id));
 
     Ok(videos)
+}
+
+pub async fn get_video(id: i32) -> Result<Video> {
+    let pool = establish_connection().await?;
+    let row = sqlx::query!(
+        r#"SELECT id, title, description, timestamps, duration, link, nist_notes, master_id
+         FROM videos WHERE id = $1"#,
+        &id,
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let master = get_master_video(row.master_id, Some(pool.clone())).await?;
+    let mut video = Video {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        timestamps: row.timestamps,
+        duration: row.duration,
+        link: row.link,
+        nist_notes: row.nist_notes,
+        master,
+        videographers: Vec::new(),
+        reporters: Vec::new(),
+        people: Vec::new(),
+        jumper_timestamps: Vec::new(),
+        nist_files: Vec::new(),
+    };
+
+    let rows = sqlx::query_as!(
+        Videographer,
+        r#"SELECT v.id, v.name FROM videographers v
+        JOIN videos_videographers vv ON v.id = vv.videographer_id
+        WHERE vv.video_id = $1;"#,
+        &id,
+    )
+    .fetch_all(&pool)
+    .await?;
+    for row in rows {
+        video.videographers.push(row)
+    }
+
+    let rows = sqlx::query_as!(
+        Videographer,
+        r#"SELECT v.id, v.name FROM videographers v
+        JOIN videos_videographers vv ON v.id = vv.videographer_id
+        WHERE vv.video_id = $1;"#,
+        &id,
+    )
+    .fetch_all(&pool)
+    .await?;
+    for row in rows {
+        video.videographers.push(row)
+    }
+
+    let rows = sqlx::query_as!(
+        Reporter,
+        r#"SELECT r.id, r.name FROM reporters r
+        JOIN videos_reporters rr ON r.id = rr.reporter_id
+        WHERE rr.video_id = $1;"#,
+        &id,
+    )
+    .fetch_all(&pool)
+    .await?;
+    for row in rows {
+        video.reporters.push(row)
+    }
+
+    let rows = sqlx::query_as!(
+        Person,
+        r#"SELECT p.id, p.name, p.historical_title FROM people p
+        JOIN videos_people pp ON p.id = pp.person_id
+        WHERE pp.video_id = $1;"#,
+        &id,
+    )
+    .fetch_all(&pool)
+    .await?;
+    for row in rows {
+        video.people.push(row)
+    }
+
+    let rows = sqlx::query_as!(
+        JumperTimestamp,
+        r#"SELECT jt.id, jt.timestamp FROM jumper_timestamps jt
+        JOIN videos_jumper_timestamps vjt ON jt.id = vjt.jumper_timestamp_id
+        WHERE vjt.video_id = $1;"#,
+        &id,
+    )
+    .fetch_all(&pool)
+    .await?;
+    for row in rows {
+        video.jumper_timestamps.push(row)
+    }
+
+    let rows = sqlx::query_as!(
+        ReleaseFile,
+        r#"
+        SELECT rf.id, rf.path, rf.size
+        FROM release_files rf
+        JOIN videos_release_files vrf ON rf.id = vrf.release_file_id
+        WHERE vrf.video_id = $1;
+        "#,
+        &id,
+    )
+    .fetch_all(&pool)
+    .await?;
+    for row in rows {
+        video.nist_files.push((row.path, row.size as u64))
+    }
+
+    Ok(video)
 }
 
 pub async fn get_nist_videos() -> Result<Vec<NistVideo>> {

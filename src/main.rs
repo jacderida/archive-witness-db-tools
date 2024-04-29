@@ -238,6 +238,13 @@ enum VideosSubcommands {
         #[arg(long)]
         out_path: PathBuf,
     },
+    /// Print the details of a video.
+    #[clap(name = "print")]
+    Print {
+        /// The ID of the video.
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 #[tokio::main]
@@ -348,7 +355,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             MasterVideosSubcommands::Edit { id } => {
-                let mut master_video = db::get_master_video(id as i32).await?;
+                let mut master_video = db::get_master_video(id as i32, None).await?;
                 let to_edit = master_video.to_editor();
                 if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
                     master_video.update_from_editor(&edited)?;
@@ -534,6 +541,11 @@ async fn main() -> Result<()> {
                     out_path.to_string_lossy()
                 );
                 export_master_videos(&out_path).await?;
+                Ok(())
+            }
+            VideosSubcommands::Print { id } => {
+                let video = db::get_video(id as i32).await?;
+                video.print();
                 Ok(())
             }
         },

@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use thiserror::Error;
 
-#[derive(Clone)]
+#[derive(Clone, FromRow)]
 pub struct ReleaseFile {
     pub id: i32,
     pub path: PathBuf,
@@ -507,7 +507,7 @@ pub struct Reporter {
 pub struct Person {
     pub id: i32,
     pub name: String,
-    pub historical_title: String,
+    pub historical_title: Option<String>,
 }
 
 #[derive(Clone, FromRow)]
@@ -632,6 +632,7 @@ impl Video {
         if self.nist_files.is_empty() {
             println!("NIST Files:");
         } else {
+            println!("NIST Files:");
             for (path, size) in self.nist_files.iter() {
                 println!(
                     "{} ({})",
@@ -868,7 +869,7 @@ impl Video {
                     self.people.push(Person {
                         id: 0, // The ID will be applied when the video is saved.
                         name: person.to_string(),
-                        historical_title: String::new(),
+                        historical_title: Some(String::new()),
                     });
                 }
             }
