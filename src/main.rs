@@ -177,6 +177,13 @@ enum ReleasesSubcommands {
         #[arg(long)]
         end_release_id: Option<u32>,
     },
+    /// List all the files in a release.
+    #[clap(name = "ls-files")]
+    LsFiles {
+        /// The ID of the release.
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 /// Manage videos
@@ -378,6 +385,13 @@ async fn main() -> Result<()> {
                         list_release_extensions(release.id as i32).await?;
                         println!();
                     }
+                }
+                Ok(())
+            }
+            ReleasesSubcommands::LsFiles { id } => {
+                let release = db::get_release(id as i32).await?;
+                for file in release.files.iter() {
+                    println!("{}", file.path.to_string_lossy());
                 }
                 Ok(())
             }

@@ -10,7 +10,7 @@ CREATE TABLE releases (
 
 CREATE TABLE release_files (
     id SERIAL PRIMARY KEY,
-    path VARCHAR,
-    size BIGINT,
+    path VARCHAR NOT NULL,
+    size BIGINT NOT NULL,
     release_id INTEGER NOT NULL REFERENCES releases(id)
 );

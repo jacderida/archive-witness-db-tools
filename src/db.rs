@@ -51,8 +51,8 @@ pub async fn get_release(id: i32) -> Result<Release> {
     for row in rows {
         release.files.push(ReleaseFile {
             id: row.file_id,
-            path: PathBuf::from(row.path.unwrap()),
-            size: row.file_size.unwrap(),
+            path: PathBuf::from(row.path),
+            size: row.file_size,
         });
     }
 
