@@ -31,7 +31,7 @@ enum Commands {
     Cumulus(CumulusSubcommands),
     #[clap(subcommand)]
     Images(ImagesSubcommands),
-    #[clap(subcommand)]
+    #[clap(subcommand, name = "masters")]
     MasterVideos(MasterVideosSubcommands),
     #[clap(subcommand)]
     Releases(ReleasesSubcommands),
