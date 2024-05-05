@@ -1,5 +1,5 @@
+use crate::error::{Error, Result};
 use chrono::NaiveDateTime;
-use color_eyre::{eyre::eyre, Result};
 use encoding_rs::*;
 use lazy_static::lazy_static;
 use maplit::hashmap;
@@ -580,7 +580,7 @@ where
                     .fields
                     .iter()
                     .find(|a| a.0 == "Asset Name")
-                    .ok_or_else(|| eyre!("Could not obtain 'Asset Name' field"))?;
+                    .ok_or_else(|| Error::CumulusAssetNameFieldNotFound)?;
                 if value == name {
                     assets.push(asset);
                 }

@@ -2,5 +2,6 @@
 members = [
     "archive-wit-db",
     "archive-wit-db-utils",
+    "archive-wit-youtube-db"
 ]
 resolver = "2"

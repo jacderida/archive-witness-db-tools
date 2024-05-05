@@ -113,10 +113,7 @@ name = "archive-wit-db"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "clap",
- "color-eyre",
  "csv",
- "dialoguer",
  "dotenvy",
  "encoding_rs",
  "image",
@@ -139,6 +136,7 @@ name = "archive-wit-db-utils"
 version = "0.1.0"
 dependencies = [
  "archive-wit-db",
+ "archive-wit-youtube-db",
  "chrono",
  "clap",
  "color-eyre",
@@ -150,10 +148,22 @@ dependencies = [
  "indicatif",
  "lava_torrent",
  "lazy_static",
- "magick_rust",
  "maplit",
  "reqwest",
  "sha-1",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "archive-wit-youtube-db"
+version = "0.1.0"
+dependencies = [
+ "csv",
+ "dotenvy",
  "sqlx",
  "thiserror",
  "tokio",

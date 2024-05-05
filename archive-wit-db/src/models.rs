@@ -1,12 +1,12 @@
 use crate::{
     cumulus::CumulusImage,
+    error::{Error, Result},
     helpers::{
         duration_to_string, human_readable_size, interval_to_duration, parse_duration,
         strip_first_two_directories,
     },
 };
 use chrono::{NaiveDate, NaiveDateTime};
-use color_eyre::{eyre::eyre, Result};
 use image::GenericImageView;
 use magick_rust::{magick_wand_genesis, MagickWand};
 use sqlx::{postgres::types::PgInterval, FromRow};
@@ -163,12 +163,11 @@ impl Image {
                 if output.status.success() {
                     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
                 } else {
-                    Err(eyre!(String::from_utf8_lossy(&output.stderr)
-                        .trim()
-                        .to_string()))
+                    let error_output = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    return Err(Error::FileCommandError(error_output));
                 }
             }
-            Err(e) => Err(eyre!(e.to_string())),
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -183,10 +182,7 @@ impl Image {
                 // Fall back to using ImageMagick
                 magick_wand_genesis();
                 let wand = MagickWand::new();
-                wand.read_image(
-                    path.to_str()
-                        .ok_or_else(|| eyre!("Could not obtain path"))?,
-                )?;
+                wand.read_image(path.to_str().ok_or_else(|| Error::PathNotObtained)?)?;
                 let width = wand.get_image_width();
                 let height = wand.get_image_height();
                 Ok((width as i16, height as i16))
@@ -438,7 +434,7 @@ impl MasterVideo {
     pub fn update_from_editor(&mut self, edited: &str) -> Result<()> {
         let parts: Vec<_> = edited.split("---\n").collect();
         if parts.len() != 6 {
-            return Err(eyre!("Input string does not match expected format"));
+            return Err(Error::InvalidMasterVideoRecordFormat);
         }
 
         self.title = parts[0].trim_start_matches("Title: ").trim().to_string();
@@ -762,7 +758,7 @@ impl Video {
     pub fn update_from_editor(&mut self, edited: &str) -> Result<String> {
         let parts: Vec<_> = edited.split("---\n").collect();
         if parts.len() != 12 {
-            return Err(eyre!("Input string does not match expected format"));
+            return Err(Error::InvalidVideoRecordFormat);
         }
 
         let master_title = parts[0]
@@ -805,7 +801,7 @@ impl Video {
         } else {
             let duration = parse_duration(duration);
             let interval = PgInterval::try_from(duration)
-                .map_err(|_| eyre!("Could not convert duration to PgInterval"))?;
+                .map_err(|_| Error::DurationToPgIntervalConversionError)?;
             Some(interval)
         };
 

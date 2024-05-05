@@ -1,13 +1,14 @@
 mod helpers;
 
 pub mod cumulus;
+pub mod error;
 pub mod models;
 
+use crate::error::{Error, Result};
 use crate::models::{
     Category, Content, Image, JumperTimestamp, MasterVideo, Network, NistTape, NistVideo, Person,
     Photographer, Release, ReleaseFile, Reporter, Tag, Video, Videographer,
 };
-use color_eyre::{eyre::eyre, Result};
 use csv::ReaderBuilder;
 use dotenvy::dotenv;
 use sqlx::pool::Pool;
@@ -39,7 +40,7 @@ pub async fn get_release(id: i32) -> Result<Release> {
     .await?;
 
     if rows.is_empty() {
-        return Err(eyre!("Could not find release with ID {id}"));
+        return Err(Error::ReleaseNotFound(id as u32));
     }
 
     let mut release = Release {
@@ -158,7 +159,7 @@ pub async fn get_master_video(id: i32, pool: Option<Pool<Postgres>>) -> Result<M
     .await?;
 
     if rows.is_empty() {
-        return Err(eyre!("Could not find master video with ID {id}"));
+        return Err(Error::MasterVideoNotFound(id as u32));
     }
 
     let mut video = MasterVideo {
@@ -402,14 +403,15 @@ pub async fn get_torrent_content(release_id: i32) -> Result<Option<Vec<u8>>> {
     }
 }
 
-pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> color_eyre::Result<()> {
+pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> Result<()> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
 
     let mut rdr = ReaderBuilder::new().has_headers(true).from_path(csv_path)?;
     for result in rdr.deserialize() {
         let record: Vec<String> = result?;
-        let video = NistVideo::try_from(record).map_err(|e| color_eyre::eyre::eyre!(e))?;
+        let video = NistVideo::try_from(record)
+            .map_err(|e| Error::NistVideoConversionError(e.to_string()))?;
         sqlx::query_as!(
             NistVideo,
             r#"INSERT INTO nist_videos (
@@ -438,14 +440,15 @@ pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> color_eyre::
     Ok(())
 }
 
-pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> color_eyre::Result<()> {
+pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> Result<()> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
 
     let mut rdr = ReaderBuilder::new().has_headers(true).from_path(csv_path)?;
     for result in rdr.deserialize() {
         let record: Vec<String> = result?;
-        let tape = NistTape::try_from(record).map_err(|e| color_eyre::eyre::eyre!(e))?;
+        let tape = NistTape::try_from(record)
+            .map_err(|e| Error::NistTapeConversionError(e.to_string()))?;
         sqlx::query_as!(
             NistTape,
             r#"INSERT INTO nist_tapes (
