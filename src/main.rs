@@ -218,6 +218,12 @@ enum VideosSubcommands {
         #[arg(long)]
         out_path: PathBuf,
     },
+    /// Edit a video using an interactive editor.
+    #[clap(name = "edit")]
+    Edit {
+        #[arg(long)]
+        id: u32,
+    },
     /// Exports the video list for a given range of releases
     #[clap(name = "export")]
     Export {
@@ -524,6 +530,32 @@ async fn main() -> Result<()> {
                 );
                 println!("This can take 30 to 60 seconds...");
                 convert_videos_to_csv(cumulus_export_path, out_path)?;
+                Ok(())
+            }
+            VideosSubcommands::Edit { id } => {
+                let master_videos = db::get_master_videos().await?;
+                let mut video = db::get_video(id as i32).await?;
+
+                let to_edit = video.to_editor(&master_videos);
+                let master_title = if let Some(edited) = Editor::new().edit(&to_edit)? {
+                    let master_title = video.update_from_editor(&edited)?;
+                    master_title
+                } else {
+                    println!("Edits will not be saved");
+                    return Ok(());
+                };
+
+                if let Some(master) = master_videos.iter().find(|m| m.title == master_title) {
+                    video.master = master.clone();
+                } else {
+                    return Err(eyre!("There is no master video titled '{master_title}'"));
+                }
+
+                let updated = db::save_video(video).await?;
+                println!("===========");
+                println!("Saved video");
+                println!("===========");
+                updated.print();
                 Ok(())
             }
             VideosSubcommands::Export {
