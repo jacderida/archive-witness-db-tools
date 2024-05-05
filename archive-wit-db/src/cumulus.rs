@@ -1,13 +1,145 @@
-use crate::static_data::FIELD_NAME_TYPE_MAP;
 use chrono::NaiveDateTime;
 use color_eyre::{eyre::eyre, Result};
 use encoding_rs::*;
+use lazy_static::lazy_static;
+use maplit::hashmap;
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use uuid::Uuid;
+
+lazy_static! {
+    pub static ref FIELD_NAME_TYPE_MAP: HashMap<&'static str, &'static str> = hashmap! {
+        "Use Limited" => "Tag",
+        "Other Aircraft" => "Tag",
+        "Horizontal Pixels" => "String",
+        "Flames Visible" => "Tag",
+        "WTC 7 Faces" => "Tag",
+        "Debris Inside Building" => "Tag",
+        "Shot From" => "String",
+        "WTC 1 South Face" => "Tag",
+        "Good for Analysis" => "Tag",
+        "Debris" => "Tag",
+        "WTC 1 East Face" => "Tag",
+        "Street" => "Tag",
+        "FDNY" => "Tag",
+        "WTC 2 Faces" => "Tag",
+        "WTC 7 North Face" => "Tag",
+        // Unsure about this
+        "Medium" => "Tag",
+        "Streamers Falling" => "Tag",
+        "FDNY Apparatus" => "Tag",
+        "Impact Aircraft" => "Tag",
+        "Inside" => "Tag",
+        "Copyright?" => "Tag",
+        "Building" => "Tag",
+        "NYPD Apparatus" => "Tag",
+        "WTC 1 North Face" => "Tag",
+        "WTC 1 West Face" => "Tag",
+        "Fireball" => "Tag",
+        "Aircraft Debris" => "Tag",
+        "WTC 7 East Face" => "Tag",
+        // Unsure about this
+        "Thumbnail Rotation" => "String",
+        "FDNY Personnel" => "Tag",
+        "Far" => "Tag",
+        "Received From" => "String",
+        "Hanging Floor" => "Tag",
+        "Collapse Debris" => "Tag",
+        "WTC 7" => "Tag",
+        "Other Building" => "Tag",
+        "Outside" => "Tag",
+        "Falling" => "Tag",
+        "Time Uncertainty (s)" => "String",
+        "People" => "Tag",
+        "1st Plane Strike" => "Tag",
+        // Unsure about this
+        "Checkout User" => "String",
+        // Unsure about this
+        "Annotation" => "String",
+        "Server Name" => "String",
+        "Volume Name" => "String",
+        "Asset Name" => "String",
+        "Faces Visible" => "Tag",
+        "WTC 7 Collapse" => "Tag",
+        "Keywords" => "String",
+        "Copyright Agreement Details" => "String",
+        "Folder Name" => "String",
+        "WTC 7 West Face" => "Tag",
+        "Near" => "Tag",
+        "NYPD Personnel" => "Tag",
+        "2nd Plane Strike" => "Tag",
+        "Album" => "String",
+        "View Direction" => "String",
+        "WTC 7 South Face" => "Tag",
+        "Thermal" => "Tag",
+        "WTC 2" => "Tag",
+        "Building Core" => "Tag",
+        "Date Recorded" => "String",
+        "Dripping" => "Tag",
+        "WTC 1 Faces" => "Tag",
+        "Caption" => "String",
+        "WTC 2 South Face" => "Tag",
+        "WTC 2 East Face" => "Tag",
+        "WTC 1 Collapse" => "Tag",
+        "WTC 1" => "Tag",
+        // Unsure about this
+        "Thumbnail Standard Deviation" => "String",
+        // Unsure about this
+        "Thumbnail Mean Value" => "String",
+        "Asset Modification State Identifier" => "String",
+        "Asset Identifier" => "String",
+        "WTC 2 North Face" => "Tag",
+        "Street Debris" => "Tag",
+        "Vertical Pixels" => "String",
+        "Plume" => "Tag",
+        "NYPD" => "Tag",
+        // Unsure about this
+        "Distance" => "String",
+        // Unsure about this based on the size of the field (was 1744 bytes)
+        "Asset Reference" => "String",
+        "File Data Size" => "String",
+        "Original Source" => "String",
+        "Image Height" => "String",
+        "Image Width" => "String",
+        "WTC 2 West Face" => "Tag",
+        "Vertical Resolution" => "String",
+        "Analyzed" => "Tag",
+        "Photographer" => "String",
+        "Horizontal Resolution" => "String",
+        "Color Mode" => "String",
+        "File Format" => "String",
+        "Falling Structural Objects" => "Tag",
+        "Notes" => "String",
+        "Thumbnail" => "Binary",
+        // Unsure about this
+        "Software" => "String",
+        "Cataloging User" => "String",
+        // Unsure about this
+        "Status" => "String",
+        "Asset Modification Date" => "String",
+        "Asset Creation Date" => "String",
+        "Don't Delete Record" => "Tag",
+        "WTC 2 Collapse" => "Tag",
+        "Record Modification Date" => "String",
+        "Record Creation Date" => "String",
+        "Record Name" => "String",
+        "Windows Opened" => "Tag",
+        "Helicopters" => "Tag",
+        "Major Fire Change" => "Tag",
+        "Major Smoke Change" => "Tag",
+        "Duration" => "String",
+        "Final Date Recorded" => "String",
+        "Content" => "String",
+        "Fixed Camera" => "Tag",
+        "Aircraft" => "Tag",
+        "Major Change" => "Tag",
+        "End Recording" => "Tag",
+        "Falling Objects" => "Tag",
+    };
+}
 
 pub struct Header {
     pub file_type: String,

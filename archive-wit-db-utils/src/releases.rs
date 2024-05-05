@@ -1,8 +1,5 @@
-use crate::{
-    helpers::human_readable_size,
-    models::{Release, ReleaseFile},
-    static_data::RELEASE_DATA,
-};
+use crate::{helpers::human_readable_size, static_data::RELEASE_DATA};
+use archive_wit_db::models::{Release, ReleaseFile};
 use chrono::NaiveDate;
 use color_eyre::{eyre::eyre, Result};
 use csv::Writer;
@@ -138,9 +135,9 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
                 Vec::new()
             },
         };
-        let saved_release = crate::db::save_release(new_release).await?;
+        let saved_release = archive_wit_db::save_release(new_release).await?;
         if let Some(path) = torrent_path {
-            crate::db::save_torrent(saved_release.id, &path).await?;
+            archive_wit_db::save_torrent(saved_release.id, &path).await?;
         }
     }
 
@@ -148,7 +145,7 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
 }
 
 pub async fn get_torrent_tree(release_id: i32) -> Result<Option<Vec<(PathBuf, u64)>>> {
-    let torrent_content = crate::db::get_torrent_content(release_id).await?;
+    let torrent_content = archive_wit_db::get_torrent_content(release_id).await?;
     if let Some(content) = torrent_content {
         let torrent = Torrent::read_from_bytes(content)?;
         let files = torrent
@@ -204,7 +201,7 @@ pub async fn list_release_range_extensions(
 }
 
 pub async fn list_releases() -> Result<()> {
-    let releases = crate::db::get_releases().await?;
+    let releases = archive_wit_db::get_releases().await?;
     for release in releases.iter() {
         println!("{}: {}", release.id, release.name);
     }
@@ -233,7 +230,7 @@ pub async fn export_video_list(
 
     for release_id in start_release_id..=end_release_id {
         println!("Processing release {release_id}...");
-        let release = crate::db::get_release(release_id).await?;
+        let release = archive_wit_db::get_release(release_id).await?;
         if let Some(torrent_tree) = get_torrent_tree(release_id).await? {
             for (file_path, file_size) in torrent_tree {
                 if is_video_file(&file_path) {
@@ -256,7 +253,7 @@ pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
     writer.write_record(&["id", "title", "date", "description", "network"])?;
 
-    let master_videos = crate::db::get_master_videos().await?;
+    let master_videos = archive_wit_db::get_master_videos().await?;
     for video in master_videos.iter() {
         writer.write_record(&[
             video.id.to_string(),

@@ -1,3 +1,8 @@
+mod helpers;
+
+pub mod cumulus;
+pub mod models;
+
 use crate::models::{
     Category, Content, Image, JumperTimestamp, MasterVideo, Network, NistTape, NistVideo, Person,
     Photographer, Release, ReleaseFile, Reporter, Tag, Video, Videographer,

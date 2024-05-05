@@ -1,16 +1,14 @@
-pub mod cumulus;
-pub mod db;
 pub mod helpers;
 pub mod images;
-pub mod models;
 pub mod releases;
 pub mod static_data;
 
-use crate::cumulus::*;
-use crate::db::*;
 use crate::images::*;
-use crate::models::{MasterVideo, Network, Video};
 use crate::releases::*;
+use archive_wit_db::{
+    cumulus::*,
+    models::{MasterVideo, Network, Video},
+};
 use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
 use dialoguer::Editor;
@@ -262,13 +260,13 @@ async fn main() -> Result<()> {
         Commands::AccessDb(access_command) => match access_command {
             AccessDbSubcommands::ImportTapes { path } => {
                 print!("Importing the Tapes table from the NIST database...");
-                import_nist_tapes_table_from_csv(path).await?;
+                archive_wit_db::import_nist_tapes_table_from_csv(path).await?;
                 print!("done");
                 Ok(())
             }
             AccessDbSubcommands::ImportVideos { path } => {
                 print!("Importing the Videos table from the NIST database...");
-                import_nist_video_table_from_csv(path).await?;
+                archive_wit_db::import_nist_video_table_from_csv(path).await?;
                 print!("done");
                 Ok(())
             }
@@ -353,7 +351,7 @@ async fn main() -> Result<()> {
                     }
                 }
 
-                let updated = db::save_master_video(master_video).await?;
+                let updated = archive_wit_db::save_master_video(master_video).await?;
                 println!("==================");
                 println!("Saved master video");
                 println!("==================");
@@ -361,13 +359,13 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             MasterVideosSubcommands::Edit { id } => {
-                let mut master_video = db::get_master_video(id as i32, None).await?;
+                let mut master_video = archive_wit_db::get_master_video(id as i32, None).await?;
                 let to_edit = master_video.to_editor();
                 if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
                     master_video.update_from_editor(&edited)?;
                 }
 
-                let updated = db::save_master_video(master_video).await?;
+                let updated = archive_wit_db::save_master_video(master_video).await?;
                 println!("==================");
                 println!("Saved master video");
                 println!("==================");
@@ -381,7 +379,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             ReleasesSubcommands::Find { term } => {
-                let results = db::find_release_files(&term).await?;
+                let results = archive_wit_db::find_release_files(&term).await?;
                 for (release_name, files) in results {
                     println!("{release_name}:");
                     for file in files {
@@ -409,7 +407,7 @@ async fn main() -> Result<()> {
                 } else if let Some(release_id) = release_id {
                     list_release_extensions(release_id as i32).await?;
                 } else {
-                    let releases = crate::db::get_releases().await?;
+                    let releases = archive_wit_db::get_releases().await?;
                     for release in releases.iter() {
                         let banner = "=".repeat(release.name.len());
                         println!("{}", banner);
@@ -422,7 +420,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             ReleasesSubcommands::LsFiles { id } => {
-                let release = db::get_release(id as i32).await?;
+                let release = archive_wit_db::get_release(id as i32).await?;
                 for file in release.files.iter() {
                     println!("{}", file.path.to_string_lossy());
                 }
@@ -431,7 +429,7 @@ async fn main() -> Result<()> {
         },
         Commands::Videos(videos_command) => match videos_command {
             VideosSubcommands::Add { path } => {
-                let master_videos = db::get_master_videos().await?;
+                let master_videos = archive_wit_db::get_master_videos().await?;
 
                 let mut video = Video::default();
                 let master_title = if let Some(path) = path {
@@ -455,7 +453,7 @@ async fn main() -> Result<()> {
                     return Err(eyre!("There is no master video titled '{master_title}'"));
                 }
 
-                let updated = db::save_video(video).await?;
+                let updated = archive_wit_db::save_video(video).await?;
                 println!("===========");
                 println!("Saved video");
                 println!("===========");
@@ -464,7 +462,7 @@ async fn main() -> Result<()> {
             }
             VideosSubcommands::BuildMaster {} => {
                 println!("Building master video list from the NIST videos and tapes list");
-                let videos = get_nist_videos().await?;
+                let videos = archive_wit_db::get_nist_videos().await?;
                 let mut master_videos = Vec::new();
 
                 for video in videos.iter() {
@@ -513,7 +511,7 @@ async fn main() -> Result<()> {
 
                 print!("Saving master video list...");
                 for video in master_videos.iter() {
-                    save_master_video(video.clone()).await?;
+                    archive_wit_db::save_master_video(video.clone()).await?;
                 }
                 print!("done");
 
@@ -533,8 +531,8 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             VideosSubcommands::Edit { id } => {
-                let master_videos = db::get_master_videos().await?;
-                let mut video = db::get_video(id as i32).await?;
+                let master_videos = archive_wit_db::get_master_videos().await?;
+                let mut video = archive_wit_db::get_video(id as i32).await?;
 
                 let to_edit = video.to_editor(&master_videos);
                 let master_title = if let Some(edited) = Editor::new().edit(&to_edit)? {
@@ -551,7 +549,7 @@ async fn main() -> Result<()> {
                     return Err(eyre!("There is no master video titled '{master_title}'"));
                 }
 
-                let updated = db::save_video(video).await?;
+                let updated = archive_wit_db::save_video(video).await?;
                 println!("===========");
                 println!("Saved video");
                 println!("===========");
@@ -576,7 +574,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             VideosSubcommands::Print { id } => {
-                let video = db::get_video(id as i32).await?;
+                let video = archive_wit_db::get_video(id as i32).await?;
                 video.print();
                 Ok(())
             }

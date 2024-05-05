@@ -1,0 +1,31 @@
+[package]
+name = "archive-wit-db-utils"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+path="src/main.rs"
+name="db-utils"
+
+[dependencies]
+archive-wit-db = { path = "../archive-wit-db", version = "0.1.0" }
+color-eyre = "0.6"
+chrono = "0.4.31"
+clap = { version = "4.2.1", features = ["derive", "env"] }
+csv = "1.3.0"
+dialoguer = "0.11.0"
+dotenvy = "0.15"
+encoding_rs = "0.8.33"
+image = "0.24.7"
+indicatif = "0.17.6"
+lava_torrent = "0.11"
+lazy_static = "~1.4"
+magick_rust = "0.19.1"
+maplit = "1.0.2"
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+sha-1 = "0.9"
+sqlx = { version = "0.7.3", features = [ "chrono", "postgres", "runtime-tokio", "time"] }
+thiserror = "1.0.23"
+tokio = { version = "1.26", features = ["full"] }
+url = "2.4.1"
+uuid = "1.6.1"
