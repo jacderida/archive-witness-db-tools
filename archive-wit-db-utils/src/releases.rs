@@ -1,5 +1,5 @@
 use crate::{helpers::human_readable_size, static_data::RELEASE_DATA};
-use archive_wit_db::models::{Release, ReleaseFile};
+use archive_wit_db::models::{MasterVideo, Release, ReleaseFile};
 use chrono::NaiveDate;
 use color_eyre::{eyre::eyre, Result};
 use csv::Writer;
@@ -251,21 +251,15 @@ pub async fn export_video_list(
 
 pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
-    writer.write_record(&["id", "title", "date", "description", "network"])?;
+    writer.write_record(&["id", "title", "date", "description"])?;
 
-    let master_videos = archive_wit_db::get_master_videos().await?;
+    let master_videos = vec![MasterVideo::default()];
     for video in master_videos.iter() {
         writer.write_record(&[
             video.id.to_string(),
             video.title.clone(),
             video.date.map_or("".to_string(), |d| d.to_string()),
             video.description.clone().unwrap_or("".to_string()),
-            video
-                .networks
-                .iter()
-                .map(|n| n.name.clone())
-                .collect::<Vec<String>>()
-                .join(";"),
         ])?;
     }
 

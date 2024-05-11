@@ -1,3 +1,4 @@
+pub mod editing;
 pub mod helpers;
 pub mod images;
 pub mod releases;
@@ -7,7 +8,7 @@ use crate::images::*;
 use crate::releases::*;
 use archive_wit_db::{
     cumulus::*,
-    models::{MasterVideo, Network, Video},
+    models::{MasterVideo, Video},
 };
 use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
@@ -135,6 +136,12 @@ enum MasterVideosSubcommands {
         #[arg(long)]
         id: u32,
     },
+    /// Print a master video record
+    #[clap(name = "print")]
+    Print {
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 /// Manage 911datasets.org releases
@@ -203,9 +210,6 @@ enum VideosSubcommands {
         #[arg(long)]
         path: Option<PathBuf>,
     },
-    /// Build the master video list from the NIST video list
-    #[clap(name = "build-master")]
-    BuildMaster {},
     /// Convert the Cumulus video export to a CSV
     #[clap(name = "convert")]
     Convert {
@@ -337,39 +341,93 @@ async fn main() -> Result<()> {
         },
         Commands::MasterVideos(master_videos_command) => match master_videos_command {
             MasterVideosSubcommands::Add { path } => {
-                let mut master_video = MasterVideo::default();
-                if let Some(path) = path {
-                    let edited = std::fs::read_to_string(path)?;
-                    master_video.update_from_editor(&edited)?;
+                let news_broadcasts = archive_wit_db::get_news_broadcasts().await?;
+                let people = archive_wit_db::get_people().await?;
+                let video = if let Some(path) = path {
+                    let edited_template = std::fs::read_to_string(path)?;
+                    let video = editing::parse_master_video_editor_template(
+                        0,
+                        &edited_template,
+                        &news_broadcasts,
+                        &people,
+                    )?;
+                    video
                 } else {
-                    let to_edit = master_video.to_editor();
-                    if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
-                        master_video.update_from_editor(&edited)?;
-                    } else {
-                        println!("New record will not be added to the database");
-                        return Ok(());
+                    let template = editing::build_master_video_editor_template(
+                        &MasterVideo::default(),
+                        &news_broadcasts,
+                    );
+                    match Editor::new().edit(&template) {
+                        Ok(edited_template) => {
+                            if let Some(edited) = edited_template {
+                                let video = editing::parse_master_video_editor_template(
+                                    0,
+                                    &edited,
+                                    &news_broadcasts,
+                                    &people,
+                                )?;
+                                video
+                            } else {
+                                return Err(eyre!(
+                                    "An unknown error occurred when editing the master video"
+                                ));
+                            }
+                        }
+                        Err(_) => {
+                            println!("New record will not be added to the database");
+                            return Ok(());
+                        }
                     }
-                }
+                };
 
-                let updated = archive_wit_db::save_master_video(master_video).await?;
+                let updated = archive_wit_db::save_master_video(video).await?;
                 println!("==================");
                 println!("Saved master video");
                 println!("==================");
                 updated.print();
+
                 Ok(())
             }
             MasterVideosSubcommands::Edit { id } => {
-                let mut master_video = archive_wit_db::get_master_video(id as i32, None).await?;
-                let to_edit = master_video.to_editor();
-                if let Some(edited) = Editor::new().edit(&to_edit).unwrap() {
-                    master_video.update_from_editor(&edited)?;
-                }
+                let news_broadcasts = archive_wit_db::get_news_broadcasts().await?;
+                let people = archive_wit_db::get_people().await?;
+                let master_video = archive_wit_db::get_master_video(id as i32, None).await?;
 
-                let updated = archive_wit_db::save_master_video(master_video).await?;
+                let template =
+                    editing::build_master_video_editor_template(&master_video, &news_broadcasts);
+                let edited_master = match Editor::new().edit(&template) {
+                    Ok(edited_template) => {
+                        if let Some(edited) = edited_template {
+                            let video = editing::parse_master_video_editor_template(
+                                master_video.id,
+                                &edited,
+                                &news_broadcasts,
+                                &people,
+                            )?;
+                            video
+                        } else {
+                            println!("New record will not be added to the database");
+                            return Ok(());
+                        }
+                    }
+                    Err(_) => {
+                        return Err(eyre!(
+                            "An unknown error occurred when editing the master video"
+                        ));
+                    }
+                };
+
+                let updated = archive_wit_db::save_master_video(edited_master).await?;
                 println!("==================");
                 println!("Saved master video");
                 println!("==================");
                 updated.print();
+
+                Ok(())
+            }
+            MasterVideosSubcommands::Print { id } => {
+                let master_video = archive_wit_db::get_master_video(id as i32, None).await?;
+                master_video.print();
                 Ok(())
             }
         },
@@ -429,91 +487,34 @@ async fn main() -> Result<()> {
         },
         Commands::Videos(videos_command) => match videos_command {
             VideosSubcommands::Add { path } => {
-                let master_videos = archive_wit_db::get_master_videos().await?;
+                let masters = archive_wit_db::get_master_videos().await?;
+                let video = Video::default();
+                let template = editing::build_video_editor_template(&video, &masters);
 
-                let mut video = Video::default();
-                let master_title = if let Some(path) = path {
-                    let edited = std::fs::read_to_string(path)?;
-                    let master_title = video.update_from_editor(&edited)?;
-                    master_title
+                let video = if let Some(path) = path {
+                    let edited_template = std::fs::read_to_string(path)?;
+                    editing::parse_video_editor_template(video.id, &edited_template, &masters)?
                 } else {
-                    let to_edit = video.to_editor(&master_videos);
-                    if let Some(edited) = Editor::new().edit(&to_edit)? {
-                        let master_title = video.update_from_editor(&edited)?;
-                        master_title
-                    } else {
-                        println!("New record will not be added to the database");
-                        return Ok(());
+                    match Editor::new().edit(&template) {
+                        Ok(edited_template) => {
+                            if let Some(edited) = edited_template {
+                                editing::parse_video_editor_template(video.id, &edited, &masters)?
+                            } else {
+                                println!("New record will not be added to the database");
+                                return Ok(());
+                            }
+                        }
+                        Err(_) => {
+                            return Err(eyre!("An unknown error occurred when editing the video"));
+                        }
                     }
                 };
-
-                if let Some(master) = master_videos.iter().find(|m| m.title == master_title) {
-                    video.master = master.clone();
-                } else {
-                    return Err(eyre!("There is no master video titled '{master_title}'"));
-                }
 
                 let updated = archive_wit_db::save_video(video).await?;
                 println!("===========");
                 println!("Saved video");
                 println!("===========");
                 updated.print();
-                Ok(())
-            }
-            VideosSubcommands::BuildMaster {} => {
-                println!("Building master video list from the NIST videos and tapes list");
-                let videos = archive_wit_db::get_nist_videos().await?;
-                let mut master_videos = Vec::new();
-
-                for video in videos.iter() {
-                    let networks = if let Some(network) = &video.network {
-                        if network == "None" || network == "misc" || network.is_empty() {
-                            Vec::new()
-                        } else if network.contains(',') {
-                            network
-                                .split(',')
-                                .into_iter()
-                                .map(|n| Network {
-                                    id: 0,
-                                    name: n.trim().to_string(),
-                                })
-                                .collect::<Vec<Network>>()
-                        } else if network.contains('/') {
-                            network
-                                .split('/')
-                                .into_iter()
-                                .map(|n| Network {
-                                    id: 0,
-                                    name: n.trim().to_string(),
-                                })
-                                .collect::<Vec<Network>>()
-                        } else {
-                            vec![Network {
-                                id: 0,
-                                name: network.to_string(),
-                            }]
-                        }
-                    } else {
-                        Vec::new()
-                    };
-
-                    let master_video = MasterVideo {
-                        id: 0,
-                        title: video.video_title.clone(),
-                        date: video.broadcast_date,
-                        description: None,
-                        networks,
-                        categories: Vec::new(),
-                        links: Vec::new(),
-                    };
-                    master_videos.push(master_video);
-                }
-
-                print!("Saving master video list...");
-                for video in master_videos.iter() {
-                    archive_wit_db::save_master_video(video.clone()).await?;
-                }
-                print!("done");
 
                 Ok(())
             }
@@ -531,29 +532,30 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             VideosSubcommands::Edit { id } => {
-                let master_videos = archive_wit_db::get_master_videos().await?;
-                let mut video = archive_wit_db::get_video(id as i32).await?;
+                let masters = archive_wit_db::get_master_videos().await?;
+                let video = archive_wit_db::get_video(id as i32, None).await?;
+                let template = editing::build_video_editor_template(&video, &masters);
 
-                let to_edit = video.to_editor(&master_videos);
-                let master_title = if let Some(edited) = Editor::new().edit(&to_edit)? {
-                    let master_title = video.update_from_editor(&edited)?;
-                    master_title
-                } else {
-                    println!("Edits will not be saved");
-                    return Ok(());
+                let edited_video = match Editor::new().edit(&template) {
+                    Ok(edited_template) => {
+                        if let Some(edited) = edited_template {
+                            editing::parse_video_editor_template(video.id, &edited, &masters)?
+                        } else {
+                            println!("Changes to the video record will not be saved");
+                            return Ok(());
+                        }
+                    }
+                    Err(_) => {
+                        return Err(eyre!("An unknown error occurred when editing the video"));
+                    }
                 };
 
-                if let Some(master) = master_videos.iter().find(|m| m.title == master_title) {
-                    video.master = master.clone();
-                } else {
-                    return Err(eyre!("There is no master video titled '{master_title}'"));
-                }
-
-                let updated = archive_wit_db::save_video(video).await?;
+                let updated = archive_wit_db::save_video(edited_video).await?;
                 println!("===========");
                 println!("Saved video");
                 println!("===========");
                 updated.print();
+
                 Ok(())
             }
             VideosSubcommands::Export {
@@ -574,7 +576,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             VideosSubcommands::Print { id } => {
-                let video = archive_wit_db::get_video(id as i32).await?;
+                let video = archive_wit_db::get_video(id as i32, None).await?;
                 video.print();
                 Ok(())
             }

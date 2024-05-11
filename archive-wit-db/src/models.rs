@@ -6,10 +6,17 @@ use crate::{
         strip_first_two_directories,
     },
 };
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use image::GenericImageView;
 use magick_rust::{magick_wand_genesis, MagickWand};
-use sqlx::{postgres::types::PgInterval, FromRow};
+use regex::Regex;
+use sqlx::{
+    postgres::{
+        types::{PgHasArrayType, PgInterval},
+        PgTypeInfo,
+    },
+    FromRow,
+};
 use std::path::PathBuf;
 use std::process::Command;
 use thiserror::Error;
@@ -326,42 +333,325 @@ impl TryFrom<Vec<String>> for NistTape {
     }
 }
 
-#[derive(Clone, FromRow)]
-pub struct Category {
-    pub id: i32,
-    pub name: String,
+#[derive(Clone, Debug, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "category", rename_all = "lowercase")]
+pub enum Category {
+    AmateurFootage,
+    Compilation,
+    Documentary,
+    News,
+    ProfessionalFootage,
+    SurvivorAccount,
 }
 
-#[derive(Clone, FromRow)]
-pub struct Network {
+impl std::fmt::Display for Category {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let category_str = match self {
+            Category::AmateurFootage => "amateur-footage",
+            Category::Compilation => "compilation",
+            Category::Documentary => "documentary",
+            Category::News => "news",
+            Category::ProfessionalFootage => "professional-footage",
+            Category::SurvivorAccount => "survivor-account",
+        };
+        write!(f, "{}", category_str)
+    }
+}
+
+impl From<&str> for Category {
+    fn from(s: &str) -> Self {
+        match s {
+            "amateur-footage" => Category::AmateurFootage,
+            "compilation" => Category::Compilation,
+            "documentary" => Category::Documentary,
+            "news" => Category::News,
+            "professional-footage" => Category::ProfessionalFootage,
+            _ => panic!("'{s}' is not a valid category"),
+        }
+    }
+}
+
+impl PgHasArrayType for Category {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::with_name("_category")
+    }
+}
+
+#[derive(Clone, Debug, sqlx::Type)]
+#[sqlx(type_name = "event_type", rename_all = "lowercase")]
+pub enum EventType {
+    CameraSource,
+    Jumper,
+    Key,
+    Normal,
+    Person,
+    PentagonAttack,
+    Report,
+    Wtc1Collapse,
+    Wtc1Impact,
+    Wtc2Collapse,
+    Wtc2Impact,
+}
+
+impl std::fmt::Display for EventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let event_type_str = match self {
+            EventType::CameraSource => "camera-source",
+            EventType::Jumper => "jumper",
+            EventType::Key => "key",
+            EventType::Normal => "normal",
+            EventType::Person => "person",
+            EventType::PentagonAttack => "pentagon-attack",
+            EventType::Report => "report",
+            EventType::Wtc1Collapse => "wtc1-collapse",
+            EventType::Wtc1Impact => "wtc1-impact",
+            EventType::Wtc2Collapse => "wtc2-collapse",
+            EventType::Wtc2Impact => "wtc2-impact",
+        };
+        write!(f, "{}", event_type_str)
+    }
+}
+
+impl From<&str> for EventType {
+    fn from(s: &str) -> Self {
+        match s {
+            "camera-source" => EventType::CameraSource,
+            "jumper" => EventType::Jumper,
+            "key" => EventType::Key,
+            "normal" => EventType::Normal,
+            "person" => EventType::Person,
+            "pentagon-attack" => EventType::PentagonAttack,
+            "report" => EventType::Report,
+            "wtc1-collapse" => EventType::Wtc1Collapse,
+            "wtc1-impact" => EventType::Wtc1Impact,
+            "wtc2-collapse" => EventType::Wtc2Collapse,
+            "wtc2-impact" => EventType::Wtc2Impact,
+            _ => panic!("'{s}' is not a valid event type"),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct EventTimestamp {
+    pub id: i32,
+    pub description: String,
+    pub timestamp: PgInterval,
+    pub event_type: EventType,
+    pub time_of_day: Option<NaiveTime>,
+}
+
+impl TryFrom<&str> for EventTimestamp {
+    type Error = &'static str;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        let time_and_desc_regex = Regex::new(
+            r"^(?P<time>\d{2}:\d{2}:\d{2}): (?P<description>.+?) \[(?P<time_of_day>\d{4})?\] \[(?P<event_type>[\w-]+)\]$"
+        ).map_err(|_| "Regex compilation failed")?;
+
+        let time_and_desc_simple_regex = Regex::new(
+            r"^(?P<time>\d{2}:\d{2}:\d{2}): (?P<description>.+?) \[(?P<event_type>[\w-]+)\]$",
+        )
+        .map_err(|_| "Regex compilation failed")?;
+
+        let caps = time_and_desc_regex
+            .captures(s)
+            .or_else(|| time_and_desc_simple_regex.captures(s))
+            .ok_or("Input string format is incorrect")?;
+
+        let time = caps.name("time").unwrap().as_str();
+        let description = caps.name("description").unwrap().as_str().trim();
+
+        let timestamp = match PgInterval::try_from(parse_duration(time)) {
+            Ok(timestamp) => timestamp,
+            Err(_) => return Err("Invalid timestamp format"),
+        };
+
+        let event_type_str = caps.name("event_type").unwrap().as_str();
+        let event_type = EventType::from(event_type_str);
+
+        let time_of_day = caps
+            .name("time_of_day")
+            .map(|tod| {
+                let hours = tod.as_str()[0..2].parse::<u32>().ok()?;
+                let minutes = tod.as_str()[2..4].parse::<u32>().ok()?;
+                NaiveTime::from_hms_opt(hours, minutes, 0)
+            })
+            .flatten();
+
+        Ok(Self {
+            id: 0,
+            description: description.to_string(),
+            timestamp,
+            event_type,
+            time_of_day,
+        })
+    }
+}
+
+impl std::fmt::Display for EventTimestamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = format!(
+            "{}: {}",
+            duration_to_string(&interval_to_duration(&self.timestamp)),
+            self.description
+        );
+        if let Some(time) = self.time_of_day {
+            s.push_str(&format!(" [{}]", time.format("%H%M").to_string()))
+        }
+        s.push_str(&format!(" [{}]", self.event_type.to_string()));
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, FromRow)]
+pub struct NewsNetwork {
     pub id: i32,
     pub name: String,
+    pub description: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct NewsAffiliate {
+    pub id: i32,
+    pub name: String,
+    pub description: String,
+    pub region: String,
+    pub network: NewsNetwork,
+}
+
+#[derive(Clone, Debug)]
+pub struct NewsBroadcast {
+    pub id: i32,
+    pub date: Option<NaiveDate>,
+    pub description: Option<String>,
+    pub news_network: Option<NewsNetwork>,
+    pub news_affiliate: Option<NewsAffiliate>,
+}
+
+impl std::fmt::Display for NewsBroadcast {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut title = String::new();
+        if let Some(network) = &self.news_network {
+            title.push_str(&network.name);
+        } else if let Some(affiliate) = &self.news_affiliate {
+            title.push_str(&affiliate.name);
+        }
+        if let Some(date) = self.date {
+            title.push_str(&format!(" ({})", date.format("%Y-%m-%d")));
+        }
+        write!(f, "{}", title)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "person_type", rename_all = "lowercase")]
+pub enum PersonType {
+    Eyewitness,
+    Fire,
+    Police,
+    PortAuthority,
+    Reporter,
+    Survivor,
+    Victim,
+    Videographer,
+}
+
+impl std::fmt::Display for PersonType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let event_type_str = match self {
+            PersonType::Eyewitness => "Eyewitness",
+            PersonType::Fire => "Fire",
+            PersonType::Police => "Police",
+            PersonType::PortAuthority => "Port Authority",
+            PersonType::Reporter => "Reporter",
+            PersonType::Survivor => "Survivor",
+            PersonType::Victim => "Victim",
+            PersonType::Videographer => "Videographer",
+        };
+        write!(f, "{}", event_type_str)
+    }
+}
+
+impl From<&str> for PersonType {
+    fn from(s: &str) -> Self {
+        match s {
+            "eyewitness" => PersonType::Eyewitness,
+            "fire" => PersonType::Fire,
+            "police" => PersonType::Police,
+            "portauthority" => PersonType::PortAuthority,
+            "reporter" => PersonType::Reporter,
+            "survivor" => PersonType::Survivor,
+            "victim" => PersonType::Victim,
+            "videographer" => PersonType::Videographer,
+            _ => panic!("'{s}' is not a valid person"),
+        }
+    }
+}
+
+impl PgHasArrayType for PersonType {
+    fn array_type_info() -> PgTypeInfo {
+        PgTypeInfo::with_name("_person_type")
+    }
+}
+
+#[derive(Clone, Debug, FromRow, PartialEq)]
+pub struct Person {
+    pub id: i32,
+    pub name: String,
+    pub historical_title: Option<String>,
+    pub description: Option<String>,
+    pub types: Vec<PersonType>,
 }
 
 #[derive(Clone, Default)]
 pub struct MasterVideo {
-    pub id: i32,
-    pub title: String,
+    pub categories: Vec<Category>,
     pub date: Option<NaiveDate>,
     pub description: Option<String>,
-    pub categories: Vec<Category>,
-    pub networks: Vec<Network>,
+    pub id: i32,
     pub links: Vec<String>,
+    pub news_broadcasts: Vec<NewsBroadcast>,
+    pub nist_files: Vec<(PathBuf, u64)>,
+    pub nist_notes: Option<String>,
+    pub people: Vec<Person>,
+    pub timestamps: Vec<EventTimestamp>,
+    pub title: String,
 }
 
 impl MasterVideo {
     pub fn print(&self) {
         println!("ID: {}", self.id);
+        println!("---");
+
+        if self.news_broadcasts.is_empty() {
+            println!("News Broadcasts:");
+        } else {
+            println!(
+                "News Broadcasts: {}",
+                self.news_broadcasts
+                    .iter()
+                    .map(|b| b.to_string())
+                    .collect::<Vec<String>>()
+                    .join("; ")
+            );
+        }
+        println!("---");
+
         println!("Title: {}", self.title);
+        println!("---");
         println!(
             "Date: {}",
             self.date.map_or(String::new(), |d| d.to_string())
         );
+        println!("---");
+
         if let Some(description) = &self.description {
-            println!("Description: {}", description);
+            println!("Description:\n{}", description);
         } else {
             println!("Description:");
         }
+        println!("---");
+
         if self.categories.is_empty() {
             println!("Categories:");
         } else {
@@ -369,260 +659,37 @@ impl MasterVideo {
                 "Categories: {}",
                 self.categories
                     .iter()
-                    .map(|c| c.name.clone())
+                    .map(|c| c.to_string())
                     .collect::<Vec<String>>()
-                    .join(";")
+                    .join("; ")
             );
         }
-        if self.networks.is_empty() {
-            println!("Networks:");
-        } else {
-            println!(
-                "Networks: {}",
-                self.networks
-                    .iter()
-                    .map(|n| n.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(";")
-            );
-        }
+        println!("---");
+
         if self.links.is_empty() {
             println!("Links:");
         } else {
-            println!("Links: {}", self.links.join(";"));
+            println!("Links: {}", self.links.join("; "));
         }
-    }
-
-    pub fn to_editor(&self) -> String {
-        let categories = if self.categories.is_empty() {
-            "".to_string()
-        } else {
-            self.categories
-                .iter()
-                .map(|c| c.name.clone())
-                .collect::<Vec<String>>()
-                .join(";")
-        };
-
-        let networks = if self.networks.is_empty() {
-            "".to_string()
-        } else {
-            self.networks
-                .iter()
-                .map(|n| n.name.clone())
-                .collect::<Vec<String>>()
-                .join(";")
-        };
-
-        let links = if self.links.is_empty() {
-            "".to_string()
-        } else {
-            self.links.join(";")
-        };
-
-        format!(
-            "Title: {}\n---\nDate: {}\n---\nDescription: {}\n---\nCategories: {}\n---\nNetworks: {}\n---\nLinks: {}",
-            self.title,
-            self.date.map_or(String::new(), |d| d.to_string()),
-            self.description.as_ref().unwrap_or(&String::new()),
-            categories,
-            networks,
-            links
-        )
-    }
-
-    pub fn update_from_editor(&mut self, edited: &str) -> Result<()> {
-        let parts: Vec<_> = edited.split("---\n").collect();
-        if parts.len() != 6 {
-            return Err(Error::InvalidMasterVideoRecordFormat);
-        }
-
-        self.title = parts[0].trim_start_matches("Title: ").trim().to_string();
-
-        let date = parts[1].trim_start_matches("Date: ").trim();
-        self.date = if date.is_empty() {
-            None
-        } else {
-            Some(date.parse()?)
-        };
-
-        let description = parts[2]
-            .trim_start_matches("Description: ")
-            .trim()
-            .to_string();
-        self.description = if description.is_empty() {
-            None
-        } else {
-            Some(description)
-        };
-
-        let categories = parts[3].trim_start_matches("Categories: ").trim();
-        for category in categories.split(';').map(|c| c.trim()) {
-            if let None = self.categories.iter().find(|c| c.name == category) {
-                self.categories.push(Category {
-                    id: 0, // The ID will be applied when the video is saved.
-                    name: category.to_string(),
-                });
-            }
-        }
-
-        let networks = parts[4].trim_start_matches("Networks: ").trim();
-        for network in networks.split(';').map(|n| n.trim()) {
-            if let None = self.networks.iter().find(|n| n.name == network) {
-                self.networks.push(Network {
-                    id: 0, // The ID will be applied when the video is saved.
-                    name: network.to_string(),
-                });
-            }
-        }
-
-        let links = parts[5].trim_start_matches("Links: ").trim();
-        for link in links.split(';').map(|u| u.trim()) {
-            if !self.links.contains(&link.to_string()) && !link.is_empty() {
-                self.links.push(link.to_string());
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Clone, FromRow)]
-pub struct Videographer {
-    pub id: i32,
-    pub name: String,
-}
-
-#[derive(Clone, Debug, FromRow)]
-pub struct Reporter {
-    pub id: i32,
-    pub name: String,
-}
-
-#[derive(Clone, Debug, FromRow)]
-pub struct Person {
-    pub id: i32,
-    pub name: String,
-    pub historical_title: Option<String>,
-}
-
-#[derive(Clone, FromRow)]
-pub struct JumperTimestamp {
-    pub id: i32,
-    pub timestamp: PgInterval,
-}
-
-#[derive(Clone, Default)]
-pub struct Video {
-    pub id: i32,
-    pub master: MasterVideo,
-    pub title: String,
-    pub description: Option<String>,
-    pub timestamps: Option<String>,
-    pub duration: Option<PgInterval>,
-    pub link: Option<String>,
-    pub nist_notes: Option<String>,
-    pub videographers: Vec<Videographer>,
-    pub reporters: Vec<Reporter>,
-    pub people: Vec<Person>,
-    pub jumper_timestamps: Vec<JumperTimestamp>,
-    pub nist_files: Vec<(PathBuf, u64)>,
-}
-
-impl Video {
-    pub fn print(&self) {
-        println!("ID: {}", self.id);
         println!("---");
-        println!("Master: {}", self.master.title);
-        println!("---");
-        println!("Title: {}", self.title);
-        println!("---");
+
         println!(
-            "Description:\n{}",
-            self.description.as_ref().unwrap_or(&String::new())
-        );
-        println!("---");
-        println!(
-            "Timestamps:\n{}",
-            self.timestamps.as_ref().unwrap_or(&String::new())
-        );
-        println!("---");
-
-        if let Some(duration) = &self.duration {
-            let d = interval_to_duration(&duration);
-            println!(
-                "Duration: {:02}:{:02}:{:02}",
-                d.num_hours(),
-                d.num_minutes() % 60,
-                d.num_seconds() % 60
-            );
-        } else {
-            println!("Duration:");
-        }
-        println!("---");
-
-        println!("Link: {}", self.link.as_ref().unwrap_or(&String::new()));
-        println!("---");
-        println!(
-            "NIST Notes: {}",
+            "NIST Notes:\n{}",
             self.nist_notes.as_ref().unwrap_or(&String::new())
         );
         println!("---");
 
-        if self.videographers.is_empty() {
-            println!("Videographers:");
-        } else {
-            println!(
-                "Videographers: {}",
-                self.videographers
-                    .iter()
-                    .map(|v| v.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(";")
-            );
-        }
+        self.print_people("Eyewitnesses", PersonType::Eyewitness);
         println!("---");
-
-        if self.reporters.is_empty() {
-            println!("Reporters:");
-        } else {
-            println!(
-                "Reporters: {}",
-                self.reporters
-                    .iter()
-                    .map(|v| v.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(";")
-            );
-        }
+        self.print_people("Fire", PersonType::Fire);
         println!("---");
-
-        if self.people.is_empty() {
-            println!("People:");
-        } else {
-            println!(
-                "People: {}",
-                self.people
-                    .iter()
-                    .map(|p| p.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(";")
-            );
-        }
+        self.print_people("Police", PersonType::Police);
         println!("---");
-
-        if self.jumper_timestamps.is_empty() {
-            println!("Jumpers:");
-        } else {
-            println!(
-                "Jumpers: {}",
-                self.jumper_timestamps
-                    .iter()
-                    .map(|t| interval_to_duration(&t.timestamp).to_string())
-                    .collect::<Vec<String>>()
-                    .join(";")
-            );
-        }
+        self.print_people("Port Authority", PersonType::PortAuthority);
+        println!("---");
+        self.print_people("Reporters", PersonType::Reporter);
+        println!("---");
+        self.print_people("Videographers", PersonType::Videographer);
         println!("---");
 
         if self.nist_files.is_empty() {
@@ -639,271 +706,180 @@ impl Video {
         }
     }
 
-    pub fn to_editor(&self, master_videos: &Vec<MasterVideo>) -> String {
-        let mut template = String::new();
-
-        template.push_str("Master Video: ");
-        if self.master.id == 0 {
-            template.push_str("\n## SELECT ONE AND DELETE THE OTHERS ##\n");
-            for video in master_videos.iter() {
-                template.push_str(&format!("{}\n", video.title));
-            }
-        } else {
-            template.push_str(&self.master.title);
+    pub fn people_as_string(&self, prefix: &str, person_type: PersonType) -> String {
+        let mut s = String::new();
+        s.push_str(prefix);
+        s.push_str(":");
+        let people = &self
+            .people
+            .iter()
+            .filter_map(|p| {
+                if p.types.contains(&person_type) {
+                    Some(p.name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<String>>();
+        if !people.is_empty() {
+            s.push_str(&people.join("; "));
         }
-        template.push_str("\n---\n");
-
-        template.push_str("Title: ");
-        if !self.title.is_empty() {
-            template.push_str(&self.title);
-        }
-        template.push_str("\n---\n");
-
-        // The description field is very likely to be a multiline string, so the actual value can
-        // be on a new line.
-        template.push_str("Description:\n");
-        if let Some(description) = &self.description {
-            template.push_str(&description);
-        }
-        template.push_str("\n---\n");
-
-        // The timestamps field is very likely to be a multiline string, so the actual value can
-        // be on a new line.
-        template.push_str("Timestamps:\n");
-        if let Some(description) = &self.description {
-            template.push_str(&description);
-        }
-        template.push_str("\n---\n");
-
-        template.push_str("Duration: ");
-        if let Some(duration) = &self.duration {
-            template.push_str(&duration_to_string(&interval_to_duration(duration)));
-        }
-        template.push_str("\n---\n");
-
-        template.push_str("Link: ");
-        if let Some(link) = &self.link {
-            template.push_str(&link);
-        }
-        template.push_str("\n---\n");
-
-        template.push_str("NIST Notes: ");
-        if let Some(nist_nodes) = &self.nist_notes {
-            template.push_str(&nist_nodes);
-        }
-        template.push_str("\n---\n");
-
-        template.push_str("Videographers: ");
-        if !self.videographers.is_empty() {
-            template.push_str(
-                &self
-                    .videographers
-                    .iter()
-                    .map(|v| v.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(";"),
-            );
-        }
-        template.push_str("\n---\n");
-
-        template.push_str("Reporters: ");
-        if !self.reporters.is_empty() {
-            template.push_str(
-                &self
-                    .reporters
-                    .iter()
-                    .map(|r| r.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(";"),
-            );
-        }
-        template.push_str("\n---\n");
-
-        template.push_str("People: ");
-        if !self.people.is_empty() {
-            template.push_str(
-                &self
-                    .people
-                    .iter()
-                    .map(|p| p.name.clone())
-                    .collect::<Vec<String>>()
-                    .join(";"),
-            );
-        };
-        template.push_str("\n---\n");
-
-        template.push_str("Jumpers: ");
-        if !self.jumper_timestamps.is_empty() {
-            template.push_str(
-                &self
-                    .jumper_timestamps
-                    .iter()
-                    .map(|r| interval_to_duration(&r.timestamp).to_string())
-                    .collect::<Vec<String>>()
-                    .join(";"),
-            );
-        }
-        template.push_str("\n---\n");
-
-        template.push_str("NIST Files: ");
-        if !self.nist_files.is_empty() {
-            for (path, _) in self.nist_files.iter() {
-                template.push_str(&format!("{}\n", path.to_string_lossy()));
-            }
-        }
-
-        template
+        s
     }
 
-    pub fn update_from_editor(&mut self, edited: &str) -> Result<String> {
-        let parts: Vec<_> = edited.split("---\n").collect();
-        if parts.len() != 12 {
-            return Err(Error::InvalidVideoRecordFormat);
-        }
-
-        let master_title = parts[0]
-            .trim_start_matches("Master Title: ")
-            .trim_start_matches(':')
-            .trim()
-            .to_string();
-        self.title = parts[1]
-            .trim_start_matches("Title:")
-            .trim_start_matches(':')
-            .trim()
-            .to_string();
-
-        let description = parts[2]
-            .trim_start_matches("Description:")
-            .trim_start_matches(':')
-            .trim();
-        self.description = if description.is_empty() {
-            None
-        } else {
-            Some(description.to_string())
-        };
-
-        let timestamps = parts[3]
-            .trim_start_matches("Timestamps:")
-            .trim_start_matches(':')
-            .trim();
-        self.timestamps = if timestamps.is_empty() {
-            None
-        } else {
-            Some(timestamps.to_string())
-        };
-
-        let duration = parts[4]
-            .trim_start_matches("Duration:")
-            .trim_start_matches(':')
-            .trim();
-        self.duration = if duration.is_empty() {
-            None
-        } else {
-            let duration = parse_duration(duration);
-            let interval = PgInterval::try_from(duration)
-                .map_err(|_| Error::DurationToPgIntervalConversionError)?;
-            Some(interval)
-        };
-
-        let link = parts[5]
-            .trim_start_matches("Link:")
-            .trim_start_matches(':')
-            .trim();
-        self.link = if link.is_empty() {
-            None
-        } else {
-            Some(link.to_string())
-        };
-
-        let nist_notes = parts[6]
-            .trim_start_matches("NIST Notes:")
-            .trim_start_matches(':')
-            .trim();
-        self.nist_notes = if nist_notes.is_empty() {
-            None
-        } else {
-            Some(nist_notes.to_string())
-        };
-
-        let videographers = parts[7]
-            .trim_start_matches("Videographers:")
-            .trim_start_matches(':')
-            .trim();
-        if !videographers.is_empty() {
-            for videographer in videographers.split(';').map(|v| v.trim()) {
-                if let None = self.videographers.iter().find(|v| v.name == videographer) {
-                    self.videographers.push(Videographer {
-                        id: 0, // The ID will be applied when the video is saved.
-                        name: videographer.to_string(),
-                    });
-                }
-            }
-        }
-
-        let reporters = parts[8]
-            .trim_start_matches("Reporters:")
-            .trim_start_matches(':')
-            .trim();
-        if !reporters.is_empty() {
-            for reporter in reporters.split(';').map(|r| r.trim()) {
-                if let None = self.reporters.iter().find(|r| r.name == reporter) {
-                    self.reporters.push(Reporter {
-                        id: 0, // The ID will be applied when the video is saved.
-                        name: reporter.to_string(),
-                    });
-                }
-            }
-        }
-
-        let people = parts[9]
-            .trim_start_matches("People:")
-            .trim_start_matches(':')
-            .trim();
-        if !people.is_empty() {
-            for person in people.split(';').map(|p| p.trim()) {
-                if let None = self.people.iter().find(|p| p.name == person) {
-                    self.people.push(Person {
-                        id: 0, // The ID will be applied when the video is saved.
-                        name: person.to_string(),
-                        historical_title: Some(String::new()),
-                    });
-                }
-            }
-        }
-
-        let jumper_timestamps = parts[10]
-            .trim_start_matches("Jumpers:")
-            .trim_start_matches(':')
-            .trim();
-        if !jumper_timestamps.is_empty() {
-            for timestamp in jumper_timestamps.split(';').map(|t| {
-                let time = t.trim();
-                let duration = parse_duration(time);
-                PgInterval::try_from(duration).unwrap()
-            }) {
-                if let None = self
-                    .jumper_timestamps
+    fn print_people(&self, title: &str, person_type: PersonType) {
+        if self.people.iter().any(|p| p.types.contains(&person_type)) {
+            println!(
+                "{}: {}",
+                title,
+                self.people
                     .iter()
-                    .find(|p| p.timestamp == timestamp)
-                {
-                    self.jumper_timestamps.push(JumperTimestamp {
-                        id: 0, // The ID will be applied when the video is saved.
-                        timestamp,
-                    });
-                }
-            }
+                    .filter_map(|p| {
+                        if p.types.contains(&person_type) {
+                            Some(p.name.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<String>>()
+                    .join("; ")
+            );
+        } else {
+            println!("{title}:");
         }
+    }
+}
 
-        let nist_files = parts[11]
-            .trim_start_matches("NIST Files:")
-            .trim_start_matches(':')
-            .trim();
-        if !nist_files.is_empty() {
-            for path in nist_files.split('\n').map(|p| PathBuf::from(p)) {
-                self.nist_files.push((path, 0));
-            }
+#[derive(Clone)]
+pub struct Video {
+    pub description: Option<String>,
+    pub duration: PgInterval,
+    pub id: i32,
+    pub is_primary: bool,
+    pub link: String,
+    pub master: MasterVideo,
+    pub title: String,
+}
+
+use std::convert::TryFrom;
+
+impl Default for Video {
+    fn default() -> Self {
+        Self {
+            description: None,
+            duration: PgInterval::try_from(parse_duration("0")).unwrap(),
+            id: 0,
+            is_primary: false,
+            link: String::default(),
+            master: MasterVideo::default(),
+            title: String::default(),
         }
+    }
+}
 
-        Ok(master_title)
+impl Video {
+    pub fn print(&self) {
+        println!("ID: {}", self.id);
+        println!("---");
+        println!("Master: {}", self.master.title);
+        println!("---");
+        println!("Title: {}", self.title);
+        println!("---");
+        println!(
+            "Description:\n{}",
+            self.description.as_ref().unwrap_or(&String::new())
+        );
+        println!("---");
+
+        let d = interval_to_duration(&self.duration);
+        println!(
+            "Duration: {:02}:{:02}:{:02}",
+            d.num_hours(),
+            d.num_minutes() % 60,
+            d.num_seconds() % 60
+        );
+        println!("---");
+
+        println!("Link: {}", self.link);
+        println!("---");
+        println!("Primary: {}", self.is_primary);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_from_should_parse_timestamp_without_time_of_day() {
+        let input_str =
+            "00:08:05: Local coverage commences with an ‘Eyewitness News Special Report’. [normal]";
+        let event_timestamp = EventTimestamp::try_from(input_str).unwrap();
+        matches!(event_timestamp.event_type, EventType::Normal);
+        assert_eq!(
+            event_timestamp.description,
+            "Local coverage commences with an ‘Eyewitness News Special Report’."
+        );
+        assert_eq!(event_timestamp.time_of_day, None);
+        assert_eq!(
+            event_timestamp.timestamp,
+            PgInterval::try_from(parse_duration("00:08:05")).unwrap()
+        );
+    }
+
+    #[test]
+    fn try_from_should_parse_timestamp_with_time_of_day() {
+        let input_str = "00:20:00: UA175 hits the South Tower during a call with eyewitness Winston Mitchell. [0903] [wtc2-impact]";
+        let event_timestamp = EventTimestamp::try_from(input_str).unwrap();
+        matches!(event_timestamp.event_type, EventType::Wtc2Impact);
+        assert_eq!(
+            event_timestamp.description,
+            "UA175 hits the South Tower during a call with eyewitness Winston Mitchell."
+        );
+        assert_eq!(
+            event_timestamp.time_of_day,
+            NaiveTime::from_hms_opt(9, 3, 0)
+        );
+        assert_eq!(
+            event_timestamp.timestamp,
+            PgInterval::try_from(parse_duration("00:20:00")).unwrap()
+        );
+    }
+
+    #[test]
+    fn to_string_should_print_timestamp_without_time_of_day() {
+        let timestamp = EventTimestamp {
+            id: 1,
+            description: "Local coverage commences with an ‘Eyewitness News Special Report’."
+                .to_string(),
+            event_type: EventType::Normal,
+            timestamp: PgInterval::try_from(parse_duration("00:08:05")).unwrap(),
+            time_of_day: None,
+        };
+
+        let timestamp = timestamp.to_string();
+        assert_eq!(
+            timestamp,
+            "00:08:05: Local coverage commences with an ‘Eyewitness News Special Report’. [normal]"
+        );
+    }
+
+    #[test]
+    fn to_string_should_print_timestamp_with_time_of_day() {
+        let timestamp = EventTimestamp {
+            id: 1,
+            description:
+                "UA175 hits the South Tower during a call with eyewitness Winston Mitchell."
+                    .to_string(),
+            event_type: EventType::Wtc2Impact,
+            timestamp: PgInterval::try_from(parse_duration("00:20:00")).unwrap(),
+            time_of_day: NaiveTime::from_hms_opt(9, 3, 0),
+        };
+
+        let timestamp = timestamp.to_string();
+        assert_eq!(
+            timestamp,
+            "00:20:00: UA175 hits the South Tower during a call with eyewitness Winston Mitchell. [0903] [wtc2-impact]"
+        );
     }
 }
