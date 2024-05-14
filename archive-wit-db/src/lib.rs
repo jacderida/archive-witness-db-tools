@@ -117,7 +117,7 @@ pub async fn find_release_files(search_string: &str) -> Result<HashMap<String, V
     let mut map: HashMap<String, Vec<PathBuf>> = HashMap::new();
     for row in rows {
         map.entry(row.release_name)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(PathBuf::from(row.path));
     }
     Ok(map)
@@ -130,7 +130,7 @@ pub async fn get_master_videos() -> Result<Vec<MasterVideo>> {
         .await?;
     let mut ids = Vec::new();
     for row in rows {
-        ids.push(row.id as i32);
+        ids.push(row.id);
     }
 
     let mut masters = Vec::new();
@@ -561,7 +561,7 @@ pub async fn save_master_video(video: MasterVideo) -> Result<MasterVideo> {
     // record. Postgres allows the insertion of 0, despite the fact that the ID column is defined
     // as `SERIAL`.
     let video_id = if video.id == 0 {
-        let video_id = sqlx::query!(
+        sqlx::query!(
             r#"INSERT INTO master_videos (categories, title, date, description, links, nist_notes)
                VALUES ($1, $2, $3, $4, $5, $6)
                RETURNING id"#,
@@ -574,10 +574,9 @@ pub async fn save_master_video(video: MasterVideo) -> Result<MasterVideo> {
         )
         .fetch_one(&mut *tx)
         .await?
-        .id;
-        video_id
+        .id
     } else {
-        let video_id = sqlx::query!(
+        sqlx::query!(
             r#"INSERT INTO master_videos (
                     id, categories, title, date, description, links, nist_notes)
                VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -599,8 +598,7 @@ pub async fn save_master_video(video: MasterVideo) -> Result<MasterVideo> {
         )
         .fetch_one(&mut *tx)
         .await?
-        .id;
-        video_id
+        .id
     };
 
     let mut updated_video = video.clone();

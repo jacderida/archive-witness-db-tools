@@ -195,12 +195,12 @@ impl CumulusImage {
         // enclosed again in quotes.
         format!(
             "\"{}\",{},\"{}\",{},{},{},{},{},\"{}\",\"{}\",{}",
-            self.name.clone().replace("\"", "\"\""),
+            self.name.clone().replace('"', "\"\""),
             self.photographers.join(";"),
             self.shot_from
                 .clone()
                 .unwrap_or_default()
-                .replace("\"", "\"\""),
+                .replace('"', "\"\""),
             self.date_recorded.map_or(String::new(), |d| d.to_string()),
             self.file_size,
             self.horizontal_pixels
@@ -211,8 +211,8 @@ impl CumulusImage {
             self.caption
                 .clone()
                 .unwrap_or_default()
-                .replace("\"", "\"\""), // Encapsulate in quotes and escape existing quotes
-            self.notes.clone().unwrap_or_default().replace("\"", "\"\""),
+                .replace('"', "\"\""), // Encapsulate in quotes and escape existing quotes
+            self.notes.clone().unwrap_or_default().replace('"', "\"\""),
             self.tags.join(";"),
         )
     }
@@ -481,12 +481,12 @@ impl CumulusVideo {
         // enclosed again in quotes.
         format!(
             "\"{}\",{},\"{}\",{},{},{},{},{},\"{}\",{}",
-            self.name.clone().replace("\"", "\"\""),
+            self.name.clone().replace('"', "\"\""),
             self.videographers.join(";"),
             self.shot_from
                 .clone()
                 .unwrap_or_default()
-                .replace("\"", "\"\""),
+                .replace('"', "\"\""),
             self.duration
                 .clone()
                 .map_or(String::new(), |d| d.to_string()),
@@ -496,7 +496,7 @@ impl CumulusVideo {
                 .map_or(String::new(), |p| p.to_string()),
             self.vertical_pixels
                 .map_or(String::new(), |p| p.to_string()),
-            self.notes.clone().unwrap_or_default().replace("\"", "\"\""),
+            self.notes.clone().unwrap_or_default().replace('"', "\"\""),
             self.tags.join(";"),
         )
     }
@@ -654,7 +654,7 @@ fn read_header(file: &mut File) -> Result<Header> {
                 } else if section_name == "%FieldUIDs" {
                     header.field_uids = section
                         .split('\t')
-                        .filter_map(|s| Some(s.trim_matches(|c| c == '{' || c == '}')))
+                        .map(|s| s.trim_matches(|c| c == '{' || c == '}'))
                         .filter_map(|s| Uuid::parse_str(s).ok())
                         .collect();
                 }
@@ -663,12 +663,10 @@ fn read_header(file: &mut File) -> Result<Header> {
                 reading_section_name = true;
                 section_name = String::new();
             }
+        } else if reading_section_name {
+            section_name.push(buffer[0] as char);
         } else {
-            if reading_section_name {
-                section_name.push(buffer[0] as char);
-            } else {
-                current_section.push(buffer[0]);
-            }
+            current_section.push(buffer[0]);
         }
     }
 
@@ -730,7 +728,7 @@ fn read_asset_data(file: &mut File, field_names: Vec<String>) -> std::io::Result
             Err(e) => {
                 // This will occur when the end of the file reached.
                 // Returning the error causes the loop outside of this function to break.
-                return Err(e.into());
+                return Err(e);
             }
         }
     }

@@ -6,7 +6,7 @@ use csv::Writer;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use lava_torrent::torrent::v1::Torrent;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncWriteExt, BufWriter};
 use url::Url;
@@ -86,7 +86,7 @@ pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
                             let mut ancestors = first_file.path.ancestors();
                             let mut second_to_last = None;
                             let mut last = ancestors.next();
-                            while let Some(current) = ancestors.next() {
+                            for current in ancestors {
                                 second_to_last = last;
                                 last = Some(current);
                             }
@@ -161,7 +161,7 @@ pub async fn get_torrent_tree(release_id: i32) -> Result<Option<Vec<(PathBuf, u6
 }
 
 pub async fn get_release_extensions(release_id: i32) -> Result<Option<Vec<(String, i32)>>> {
-    let tree = get_torrent_tree(release_id as i32).await?;
+    let tree = get_torrent_tree(release_id).await?;
     if let Some(tree) = tree {
         let mut extension_counts = HashMap::new();
         for (path, _) in tree {
@@ -192,7 +192,7 @@ pub async fn list_release_range_extensions(
     }
 
     let mut sorted: Vec<_> = cumulative_extensions.iter().collect();
-    sorted.sort_by(|a, b| a.0.cmp(&b.0));
+    sorted.sort_by(|a, b| a.0.cmp(b.0));
     for (extension, count) in sorted {
         println!("{}: {}", extension, count);
     }
@@ -226,7 +226,7 @@ pub async fn export_video_list(
     out_path: &PathBuf,
 ) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
-    writer.write_record(&["master video id", "release name", "file path", "file size"])?;
+    writer.write_record(["master video id", "release name", "file path", "file size"])?;
 
     for release_id in start_release_id..=end_release_id {
         println!("Processing release {release_id}...");
@@ -234,7 +234,7 @@ pub async fn export_video_list(
         if let Some(torrent_tree) = get_torrent_tree(release_id).await? {
             for (file_path, file_size) in torrent_tree {
                 if is_video_file(&file_path) {
-                    writer.write_record(&[
+                    writer.write_record([
                         "0",
                         &release.name,
                         file_path.to_str().unwrap_or(""),
@@ -251,11 +251,11 @@ pub async fn export_video_list(
 
 pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
-    writer.write_record(&["id", "title", "date", "description"])?;
+    writer.write_record(["id", "title", "date", "description"])?;
 
     let master_videos = vec![MasterVideo::default()];
     for video in master_videos.iter() {
-        writer.write_record(&[
+        writer.write_record([
             video.id.to_string(),
             video.title.clone(),
             video.date.map_or("".to_string(), |d| d.to_string()),
@@ -320,7 +320,7 @@ fn get_file_name_from_url(url: &Url) -> Result<String> {
     Ok(file_name.to_string())
 }
 
-fn is_video_file(file_path: &PathBuf) -> bool {
+fn is_video_file(file_path: &Path) -> bool {
     let video_extensions = [
         "avi", "mp4", "mov", "wmv", "mpg", "mpe", "mpeg", "asf", "asx", "m1v", "vob",
     ];

@@ -345,13 +345,12 @@ async fn main() -> Result<()> {
                 let people = archive_wit_db::get_people().await?;
                 let video = if let Some(path) = path {
                     let edited_template = std::fs::read_to_string(path)?;
-                    let video = editing::parse_master_video_editor_template(
+                    editing::parse_master_video_editor_template(
                         0,
                         &edited_template,
                         &news_broadcasts,
                         &people,
-                    )?;
-                    video
+                    )?
                 } else {
                     let template = editing::build_master_video_editor_template(
                         &MasterVideo::default(),
@@ -360,13 +359,12 @@ async fn main() -> Result<()> {
                     match Editor::new().edit(&template) {
                         Ok(edited_template) => {
                             if let Some(edited) = edited_template {
-                                let video = editing::parse_master_video_editor_template(
+                                editing::parse_master_video_editor_template(
                                     0,
                                     &edited,
                                     &news_broadcasts,
                                     &people,
-                                )?;
-                                video
+                                )?
                             } else {
                                 return Err(eyre!(
                                     "An unknown error occurred when editing the master video"
@@ -398,13 +396,12 @@ async fn main() -> Result<()> {
                 let edited_master = match Editor::new().edit(&template) {
                     Ok(edited_template) => {
                         if let Some(edited) = edited_template {
-                            let video = editing::parse_master_video_editor_template(
+                            editing::parse_master_video_editor_template(
                                 master_video.id,
                                 &edited,
                                 &news_broadcasts,
                                 &people,
-                            )?;
-                            video
+                            )?
                         } else {
                             println!("New record will not be added to the database");
                             return Ok(());
@@ -471,7 +468,7 @@ async fn main() -> Result<()> {
                         println!("{}", banner);
                         println!("{}", release.name);
                         println!("{}", banner);
-                        list_release_extensions(release.id as i32).await?;
+                        list_release_extensions(release.id).await?;
                         println!();
                     }
                 }

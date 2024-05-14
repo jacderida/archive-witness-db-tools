@@ -22,7 +22,7 @@ pub fn parse_duration(time: &str) -> Duration {
             0
         };
         return Duration::milliseconds(
-            hours * 3600_000 + minutes * 60_000 + seconds * 1000 + millis,
+            hours * 3_600_000 + minutes * 60_000 + seconds * 1000 + millis,
         );
     }
     Duration::zero()

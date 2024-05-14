@@ -140,7 +140,7 @@ impl Image {
             date_recorded: cumulus_image.date_recorded,
             file_metadata: Self::get_file_metadata(path)?,
             file_size: cumulus_image.file_size as i64,
-            horizontal_pixels: width as i16,
+            horizontal_pixels: width,
             name: cumulus_image.name,
             notes: cumulus_image.notes,
             photographers: Some(
@@ -159,7 +159,7 @@ impl Image {
                     .map(|name| Tag { id: 0, name })
                     .collect(),
             ),
-            vertical_pixels: height as i16,
+            vertical_pixels: height,
         })
     }
 
@@ -171,7 +171,7 @@ impl Image {
                     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
                 } else {
                     let error_output = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                    return Err(Error::FileCommandError(error_output));
+                    Err(Error::FileCommandError(error_output))
                 }
             }
             Err(e) => Err(e.into()),
@@ -210,13 +210,7 @@ impl TryFrom<PathBuf> for Image {
             .ok_or_else(|| "Could not obtain file name".to_string())?
             .to_string_lossy();
 
-        let image = Self::new(
-            &file_name,
-            metadata.len() as i64,
-            &file_info,
-            width as i16,
-            height as i16,
-        );
+        let image = Self::new(&file_name, metadata.len() as i64, &file_info, width, height);
         Ok(image)
     }
 }
@@ -469,14 +463,11 @@ impl TryFrom<&str> for EventTimestamp {
         let event_type_str = caps.name("event_type").unwrap().as_str();
         let event_type = EventType::from(event_type_str);
 
-        let time_of_day = caps
-            .name("time_of_day")
-            .map(|tod| {
-                let hours = tod.as_str()[0..2].parse::<u32>().ok()?;
-                let minutes = tod.as_str()[2..4].parse::<u32>().ok()?;
-                NaiveTime::from_hms_opt(hours, minutes, 0)
-            })
-            .flatten();
+        let time_of_day = caps.name("time_of_day").and_then(|tod| {
+            let hours = tod.as_str()[0..2].parse::<u32>().ok()?;
+            let minutes = tod.as_str()[2..4].parse::<u32>().ok()?;
+            NaiveTime::from_hms_opt(hours, minutes, 0)
+        });
 
         Ok(Self {
             id: 0,
@@ -496,9 +487,9 @@ impl std::fmt::Display for EventTimestamp {
             self.description
         );
         if let Some(time) = self.time_of_day {
-            s.push_str(&format!(" [{}]", time.format("%H%M").to_string()))
+            s.push_str(&format!(" [{}]", time.format("%H%M")))
         }
-        s.push_str(&format!(" [{}]", self.event_type.to_string()));
+        s.push_str(&format!(" [{}]", self.event_type));
         write!(f, "{}", s)
     }
 }
@@ -709,7 +700,7 @@ impl MasterVideo {
     pub fn people_as_string(&self, prefix: &str, person_type: PersonType) -> String {
         let mut s = String::new();
         s.push_str(prefix);
-        s.push_str(":");
+        s.push(':');
         let people = &self
             .people
             .iter()

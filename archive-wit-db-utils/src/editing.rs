@@ -8,13 +8,13 @@ use std::path::PathBuf;
 
 pub fn build_master_video_editor_template(
     master_video: &MasterVideo,
-    news_broadcasts: &Vec<NewsBroadcast>,
+    news_broadcasts: &[NewsBroadcast],
 ) -> String {
     let mut template = String::new();
 
     template.push_str("News Broadcasts:");
     if !master_video.news_broadcasts.is_empty() {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(
             &master_video
                 .news_broadcasts
@@ -22,13 +22,13 @@ pub fn build_master_video_editor_template(
                 .map(|b| {
                     if let Some(network) = &b.news_network {
                         if let Some(date) = b.date {
-                            format!("{} ({})", network.name, date.to_string())
+                            format!("{} ({})", network.name, date)
                         } else {
                             network.name.clone()
                         }
                     } else if let Some(affiliate) = &b.news_affiliate {
                         if let Some(date) = b.date {
-                            format!("{} ({})", affiliate.name, date.to_string())
+                            format!("{} ({})", affiliate.name, date)
                         } else {
                             affiliate.name.clone()
                         }
@@ -39,26 +39,26 @@ pub fn build_master_video_editor_template(
                 .collect::<Vec<String>>()
                 .join(";"),
         );
-        template.push_str("\n");
+        template.push('\n');
     } else if master_video.id == 0 {
         template.push_str("\n## CHOOSE ONE OR DELETE ALL ##\n");
         for broadcast in news_broadcasts.iter() {
             template.push_str(&broadcast.to_string());
-            template.push_str("\n");
+            template.push('\n');
         }
     }
     template.push_str("---\n");
 
     template.push_str("Title:");
     if !master_video.title.is_empty() {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(&master_video.title);
     }
     template.push_str("\n---\n");
 
     template.push_str("Categories:");
     if !master_video.categories.is_empty() {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(
             &master_video
                 .categories
@@ -72,28 +72,28 @@ pub fn build_master_video_editor_template(
 
     template.push_str("Date:");
     if let Some(date) = master_video.date {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(&date.to_string());
     }
     template.push_str("\n---\n");
 
     template.push_str("Description:");
     if let Some(desc) = &master_video.description {
-        template.push_str("\n");
+        template.push('\n');
         template.push_str(desc);
     }
     template.push_str("\n---\n");
 
     template.push_str("Links:");
     if !master_video.links.is_empty() {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(&master_video.links.join(";"));
     };
     template.push_str("\n---\n");
 
     template.push_str("Timestamps:");
     if !master_video.timestamps.is_empty() {
-        template.push_str("\n");
+        template.push('\n');
         template.push_str(
             &master_video
                 .timestamps
@@ -107,8 +107,8 @@ pub fn build_master_video_editor_template(
 
     template.push_str("NIST Notes:");
     if let Some(nist_nodes) = &master_video.nist_notes {
-        template.push_str(" ");
-        template.push_str(&nist_nodes);
+        template.push(' ');
+        template.push_str(nist_nodes);
     }
     template.push_str("\n---\n");
 
@@ -131,7 +131,7 @@ pub fn build_master_video_editor_template(
 
     template.push_str("NIST Files:");
     if !master_video.nist_files.is_empty() {
-        template.push_str("\n");
+        template.push('\n');
         for (path, _) in master_video.nist_files.iter() {
             template.push_str(&format!("{}\n", path.to_string_lossy()));
         }
@@ -140,74 +140,74 @@ pub fn build_master_video_editor_template(
     template
 }
 
-pub fn build_video_editor_template(video: &Video, masters: &Vec<MasterVideo>) -> String {
+pub fn build_video_editor_template(video: &Video, masters: &[MasterVideo]) -> String {
     let mut template = String::new();
 
     template.push_str("Master:");
     if video.id != 0 {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(&video.master.title);
-        template.push_str("\n");
+        template.push('\n');
     } else {
         template.push_str("\n## CHOOSE ONE OR DELETE ALL ##\n");
         for master in masters.iter() {
             template.push_str(&master.title);
-            template.push_str("\n");
+            template.push('\n');
         }
     }
     template.push_str("---\n");
 
     template.push_str("Title:");
     if video.id != 0 {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(&video.master.title);
-        template.push_str("\n");
+        template.push('\n');
     } else {
-        template.push_str("\n");
+        template.push('\n');
     }
     template.push_str("---\n");
 
     template.push_str("Description:");
     if let Some(desc) = &video.description {
-        template.push_str("\n");
-        template.push_str(&desc);
-        template.push_str("\n");
+        template.push('\n');
+        template.push_str(desc);
+        template.push('\n');
     } else {
-        template.push_str("\n");
+        template.push('\n');
     }
     template.push_str("---\n");
 
     template.push_str("Link:");
     if video.id != 0 {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(&video.link);
-        template.push_str("\n");
+        template.push('\n');
     } else {
-        template.push_str("\n");
+        template.push('\n');
     }
     template.push_str("---\n");
 
     template.push_str("Duration:");
     if video.id != 0 {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str(&duration_to_string(&interval_to_duration(&video.duration)));
-        template.push_str("\n");
+        template.push('\n');
     } else {
-        template.push_str("\n");
+        template.push('\n');
     }
     template.push_str("---\n");
 
     template.push_str("Primary:");
     if video.id != 0 {
-        template.push_str(" ");
+        template.push(' ');
         if video.is_primary {
             template.push_str("Yes");
         } else {
             template.push_str("No");
         }
-        template.push_str("\n");
+        template.push('\n');
     } else {
-        template.push_str(" ");
+        template.push(' ');
         template.push_str("No");
     }
 
@@ -217,8 +217,8 @@ pub fn build_video_editor_template(video: &Video, masters: &Vec<MasterVideo>) ->
 pub fn parse_master_video_editor_template(
     id: i32,
     edited_template: &str,
-    news_broadcasts: &Vec<NewsBroadcast>,
-    people: &Vec<Person>,
+    news_broadcasts: &[NewsBroadcast],
+    people: &[Person],
 ) -> Result<MasterVideo> {
     let parts: Vec<_> = edited_template.split("---\n").collect();
     if parts.len() != 17 {
@@ -300,7 +300,7 @@ pub fn parse_master_video_editor_template(
         Some(nist_notes.to_string())
     };
 
-    let pairs = vec![
+    let pairs = [
         ("Eyewitnesses: ", PersonType::Eyewitness),
         ("Fire: ", PersonType::Fire),
         ("Police: ", PersonType::Police),
@@ -314,13 +314,9 @@ pub fn parse_master_video_editor_template(
     let mut video_people: Vec<Person> = Vec::new();
     let mut i = 8;
     for (prefix, person_type) in pairs.iter() {
-        let people_input = get_people_from_input(&parts[i], prefix, &people, person_type.clone());
+        let people_input = get_people_from_input(parts[i], prefix, people, person_type.clone());
         for person in people_input.iter() {
-            if video_people
-                .iter()
-                .find(|p| p.name == person.name)
-                .is_none()
-            {
+            if video_people.iter().any(|p| p.name == person.name) {
                 video_people.push(person.clone());
             }
         }
@@ -342,7 +338,7 @@ pub fn parse_master_video_editor_template(
         .trim_start_matches(':')
         .trim();
     if !nist_files_input.is_empty() {
-        for path in nist_files_input.split('\n').map(|p| PathBuf::from(p)) {
+        for path in nist_files_input.split('\n').map(PathBuf::from) {
             nist_files.push((path, 0));
         }
     }
@@ -366,7 +362,7 @@ pub fn parse_master_video_editor_template(
 pub fn parse_video_editor_template(
     id: i32,
     edited_template: &str,
-    masters: &Vec<MasterVideo>,
+    masters: &[MasterVideo],
 ) -> Result<Video> {
     let parts: Vec<_> = edited_template.split("---\n").collect();
     if parts.len() != 6 {
@@ -397,11 +393,7 @@ pub fn parse_video_editor_template(
         .map_err(|_| eyre!("Could not convert duration string"))?;
 
     let is_primary = parts[5].trim_start_matches("Primary: ").trim().to_string();
-    let is_primary = if is_primary.to_lowercase() == "yes" {
-        true
-    } else {
-        false
-    };
+    let is_primary = is_primary.to_lowercase() == "yes";
 
     let video = Video {
         description,

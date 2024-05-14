@@ -36,7 +36,7 @@ pub async fn get_video(id: &str) -> Result<YouTubeVideo> {
         &row.channel_title.unwrap(),
         row.duration,
         &row.id.unwrap(),
-        row.saved_path.map(|p| PathBuf::from(p)),
+        row.saved_path.map(PathBuf::from),
         &row.title,
     )?;
     Ok(video)

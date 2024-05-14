@@ -5,12 +5,12 @@ use archive_wit_db::{
 };
 use color_eyre::{eyre::eyre, Result};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub async fn import_images(
     release_id: i32,
     cumulus_image_export: HashMap<String, CumulusImage>,
-    releases_base_path: &PathBuf,
+    releases_base_path: &Path,
 ) -> Result<()> {
     let tree = get_torrent_tree(release_id)
         .await?
