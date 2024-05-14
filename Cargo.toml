@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "archive-wit-db",
-    "archive-wit-db-utils",
-    "archive-wit-youtube-db"
+    "db",
+    "db-youtube",
+    "tools",
 ]
 resolver = "2"

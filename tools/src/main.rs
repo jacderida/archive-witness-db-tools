@@ -6,18 +6,18 @@ pub mod static_data;
 
 use crate::images::*;
 use crate::releases::*;
-use archive_wit_db::{
+use clap::{Parser, Subcommand};
+use color_eyre::{eyre::eyre, Result};
+use db::{
     cumulus::*,
     models::{MasterVideo, Video},
 };
-use clap::{Parser, Subcommand};
-use color_eyre::{eyre::eyre, Result};
 use dialoguer::Editor;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[clap(name = "db-builder", version = env!("CARGO_PKG_VERSION"))]
+#[clap(name = "tools", version = env!("CARGO_PKG_VERSION"))]
 struct Opt {
     #[command(subcommand)]
     command: Commands,
@@ -264,13 +264,13 @@ async fn main() -> Result<()> {
         Commands::AccessDb(access_command) => match access_command {
             AccessDbSubcommands::ImportTapes { path } => {
                 print!("Importing the Tapes table from the NIST database...");
-                archive_wit_db::import_nist_tapes_table_from_csv(path).await?;
+                db::import_nist_tapes_table_from_csv(path).await?;
                 print!("done");
                 Ok(())
             }
             AccessDbSubcommands::ImportVideos { path } => {
                 print!("Importing the Videos table from the NIST database...");
-                archive_wit_db::import_nist_video_table_from_csv(path).await?;
+                db::import_nist_video_table_from_csv(path).await?;
                 print!("done");
                 Ok(())
             }
@@ -341,8 +341,8 @@ async fn main() -> Result<()> {
         },
         Commands::MasterVideos(master_videos_command) => match master_videos_command {
             MasterVideosSubcommands::Add { path } => {
-                let news_broadcasts = archive_wit_db::get_news_broadcasts().await?;
-                let people = archive_wit_db::get_people().await?;
+                let news_broadcasts = db::get_news_broadcasts().await?;
+                let people = db::get_people().await?;
                 let video = if let Some(path) = path {
                     let edited_template = std::fs::read_to_string(path)?;
                     editing::parse_master_video_editor_template(
@@ -378,7 +378,7 @@ async fn main() -> Result<()> {
                     }
                 };
 
-                let updated = archive_wit_db::save_master_video(video).await?;
+                let updated = db::save_master_video(video).await?;
                 println!("==================");
                 println!("Saved master video");
                 println!("==================");
@@ -387,9 +387,9 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             MasterVideosSubcommands::Edit { id } => {
-                let news_broadcasts = archive_wit_db::get_news_broadcasts().await?;
-                let people = archive_wit_db::get_people().await?;
-                let master_video = archive_wit_db::get_master_video(id as i32, None).await?;
+                let news_broadcasts = db::get_news_broadcasts().await?;
+                let people = db::get_people().await?;
+                let master_video = db::get_master_video(id as i32, None).await?;
 
                 let template =
                     editing::build_master_video_editor_template(&master_video, &news_broadcasts);
@@ -414,7 +414,7 @@ async fn main() -> Result<()> {
                     }
                 };
 
-                let updated = archive_wit_db::save_master_video(edited_master).await?;
+                let updated = db::save_master_video(edited_master).await?;
                 println!("==================");
                 println!("Saved master video");
                 println!("==================");
@@ -423,7 +423,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             MasterVideosSubcommands::Print { id } => {
-                let master_video = archive_wit_db::get_master_video(id as i32, None).await?;
+                let master_video = db::get_master_video(id as i32, None).await?;
                 master_video.print();
                 Ok(())
             }
@@ -434,7 +434,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             ReleasesSubcommands::Find { term } => {
-                let results = archive_wit_db::find_release_files(&term).await?;
+                let results = db::find_release_files(&term).await?;
                 for (release_name, files) in results {
                     println!("{release_name}:");
                     for file in files {
@@ -462,7 +462,7 @@ async fn main() -> Result<()> {
                 } else if let Some(release_id) = release_id {
                     list_release_extensions(release_id as i32).await?;
                 } else {
-                    let releases = archive_wit_db::get_releases().await?;
+                    let releases = db::get_releases().await?;
                     for release in releases.iter() {
                         let banner = "=".repeat(release.name.len());
                         println!("{}", banner);
@@ -475,7 +475,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             ReleasesSubcommands::LsFiles { id } => {
-                let release = archive_wit_db::get_release(id as i32).await?;
+                let release = db::get_release(id as i32).await?;
                 for file in release.files.iter() {
                     println!("{}", file.path.to_string_lossy());
                 }
@@ -484,7 +484,7 @@ async fn main() -> Result<()> {
         },
         Commands::Videos(videos_command) => match videos_command {
             VideosSubcommands::Add { path } => {
-                let masters = archive_wit_db::get_master_videos().await?;
+                let masters = db::get_master_videos().await?;
                 let video = Video::default();
                 let template = editing::build_video_editor_template(&video, &masters);
 
@@ -507,7 +507,7 @@ async fn main() -> Result<()> {
                     }
                 };
 
-                let updated = archive_wit_db::save_video(video).await?;
+                let updated = db::save_video(video).await?;
                 println!("===========");
                 println!("Saved video");
                 println!("===========");
@@ -529,8 +529,8 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             VideosSubcommands::Edit { id } => {
-                let masters = archive_wit_db::get_master_videos().await?;
-                let video = archive_wit_db::get_video(id as i32, None).await?;
+                let masters = db::get_master_videos().await?;
+                let video = db::get_video(id as i32, None).await?;
                 let template = editing::build_video_editor_template(&video, &masters);
 
                 let edited_video = match Editor::new().edit(&template) {
@@ -547,7 +547,7 @@ async fn main() -> Result<()> {
                     }
                 };
 
-                let updated = archive_wit_db::save_video(edited_video).await?;
+                let updated = db::save_video(edited_video).await?;
                 println!("===========");
                 println!("Saved video");
                 println!("===========");
@@ -573,7 +573,7 @@ async fn main() -> Result<()> {
                 Ok(())
             }
             VideosSubcommands::Print { id } => {
-                let video = archive_wit_db::get_video(id as i32, None).await?;
+                let video = db::get_video(id as i32, None).await?;
                 video.print();
                 Ok(())
             }

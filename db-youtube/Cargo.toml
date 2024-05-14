@@ -1,5 +1,5 @@
 [package]
-name = "archive-wit-youtube-db"
+name = "db-youtube"
 version = "0.1.0"
 edition = "2021"
 

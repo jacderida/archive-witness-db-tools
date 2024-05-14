@@ -1,8 +1,6 @@
-use archive_wit_db::helpers::{duration_to_string, interval_to_duration, parse_duration};
-use archive_wit_db::models::{
-    Category, EventTimestamp, MasterVideo, NewsBroadcast, Person, PersonType, Video,
-};
 use color_eyre::{eyre::eyre, Result};
+use db::helpers::{duration_to_string, interval_to_duration, parse_duration};
+use db::models::{Category, EventTimestamp, MasterVideo, NewsBroadcast, Person, PersonType, Video};
 use sqlx::postgres::types::PgInterval;
 use std::path::PathBuf;
 
@@ -316,7 +314,7 @@ pub fn parse_master_video_editor_template(
     for (prefix, person_type) in pairs.iter() {
         let people_input = get_people_from_input(parts[i], prefix, people, person_type.clone());
         for person in people_input.iter() {
-            if video_people.iter().any(|p| p.name == person.name) {
+            if !video_people.iter().any(|p| p.name == person.name) {
                 video_people.push(person.clone());
             }
         }
@@ -442,8 +440,8 @@ fn get_people_from_input(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use archive_wit_db::models::{Category, NewsAffiliate, NewsNetwork};
     use chrono::NaiveDate;
+    use db::models::{Category, NewsAffiliate, NewsNetwork};
 
     #[test]
     fn build_master_video_editor_template_from_default() {

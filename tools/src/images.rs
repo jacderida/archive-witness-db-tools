@@ -1,9 +1,9 @@
 use crate::releases::get_torrent_tree;
-use archive_wit_db::{
+use color_eyre::{eyre::eyre, Result};
+use db::{
     cumulus::{generate_asset_id, CumulusImage},
     models::{Content, ContentType, Image},
 };
-use color_eyre::{eyre::eyre, Result};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -36,7 +36,7 @@ pub async fn import_images(
             );
             match Image::try_from_path_with_cumulus_image(&file_path, cumulus_image.clone()) {
                 Ok(image) => {
-                    archive_wit_db::save_image(content, image).await?;
+                    db::save_image(content, image).await?;
                     print!("saved");
                     println!();
                 }
@@ -53,7 +53,7 @@ pub async fn import_images(
             );
             match Image::try_from(file_path).map_err(|e| eyre!(e)) {
                 Ok(image) => {
-                    archive_wit_db::save_image(content, image).await?;
+                    db::save_image(content, image).await?;
                     print!("saved");
                     println!();
                 }
