@@ -470,11 +470,21 @@ impl std::fmt::Display for EventTimestamp {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, FromRow)]
+#[derive(Clone, Debug, Default, PartialEq, FromRow)]
 pub struct NewsNetwork {
     pub id: i32,
     pub name: String,
     pub description: String,
+}
+
+impl NewsNetwork {
+    pub fn print(&self) {
+        println!("ID: {}", self.id);
+        println!("---");
+        println!("Name: {}", self.name);
+        println!("---");
+        println!("Description:\n{}", self.description);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

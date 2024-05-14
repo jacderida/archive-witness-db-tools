@@ -1,6 +1,8 @@
 use color_eyre::{eyre::eyre, Result};
 use db::helpers::{duration_to_string, interval_to_duration, parse_duration};
-use db::models::{Category, EventTimestamp, MasterVideo, NewsBroadcast, Person, PersonType, Video};
+use db::models::{
+    Category, EventTimestamp, MasterVideo, NewsBroadcast, NewsNetwork, Person, PersonType, Video,
+};
 use sqlx::postgres::types::PgInterval;
 use std::path::PathBuf;
 
@@ -212,6 +214,30 @@ pub fn build_video_editor_template(video: &Video, masters: &[MasterVideo]) -> St
     template
 }
 
+pub fn build_news_network_editor_template(network: &NewsNetwork) -> String {
+    let mut template = String::new();
+
+    template.push_str("Name:");
+    if network.id != 0 {
+        template.push(' ');
+        template.push_str(&network.name);
+        template.push('\n');
+    } else {
+        template.push('\n');
+    }
+    template.push_str("---\n");
+
+    template.push_str("Description:");
+    if network.description.is_empty() {
+        template.push('\n');
+    } else {
+        template.push('\n');
+        template.push_str(&network.description);
+    }
+
+    template
+}
+
 pub fn parse_master_video_editor_template(
     id: i32,
     edited_template: &str,
@@ -403,6 +429,34 @@ pub fn parse_video_editor_template(
         title,
     };
     Ok(video)
+}
+
+pub fn parse_news_network_editor_template(id: i32, edited_template: &str) -> Result<NewsNetwork> {
+    let parts: Vec<_> = edited_template.split("---\n").collect();
+    if parts.len() != 2 {
+        return Err(eyre!("Edited template was not in expected format"));
+    }
+
+    let name = parts[0].trim_start_matches("Name: ").trim().to_string();
+    if name.is_empty() {
+        return Err(eyre!("A name is required for the news network"));
+    }
+
+    let description = parts[1]
+        .trim_start_matches("Description:")
+        .trim_start_matches(':')
+        .trim()
+        .to_string();
+    if description.is_empty() {
+        return Err(eyre!("A description is required for the news network"));
+    }
+
+    let network = NewsNetwork {
+        description,
+        id,
+        name,
+    };
+    Ok(network)
 }
 
 fn get_people_from_input(

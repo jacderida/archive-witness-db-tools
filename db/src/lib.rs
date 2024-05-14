@@ -552,6 +552,40 @@ pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+pub async fn save_news_network(network: NewsNetwork) -> Result<NewsNetwork> {
+    let pool = establish_connection().await?;
+
+    let network_id = if network.id == 0 {
+        sqlx::query!(
+            r#"INSERT INTO news_networks (name, description) VALUES ($1, $2) RETURNING id"#,
+            network.name,
+            network.description,
+        )
+        .fetch_one(&pool)
+        .await?
+        .id
+    } else {
+        sqlx::query!(
+            r#"INSERT INTO news_networks (id, name, description)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (id) DO UPDATE SET
+                   name = EXCLUDED.name,
+                   description = EXCLUDED.description
+               RETURNING id"#,
+            network.id,
+            network.name,
+            network.description,
+        )
+        .fetch_one(&pool)
+        .await?
+        .id
+    };
+
+    let mut updated_network = network.clone();
+    updated_network.id = network_id;
+    Ok(updated_network)
+}
+
 pub async fn save_master_video(video: MasterVideo) -> Result<MasterVideo> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;

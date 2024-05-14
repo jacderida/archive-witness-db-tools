@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
 use db::{
     cumulus::*,
-    models::{MasterVideo, Video},
+    models::{MasterVideo, NewsNetwork, Video},
 };
 use dialoguer::Editor;
 use std::collections::HashSet;
@@ -29,6 +29,8 @@ enum Commands {
     Cumulus(CumulusSubcommands),
     #[clap(subcommand, name = "masters")]
     MasterVideos(MasterVideosSubcommands),
+    #[clap(subcommand)]
+    News(NewsSubcommands),
     #[clap(subcommand)]
     Releases(ReleasesSubcommands),
     #[clap(subcommand)]
@@ -109,6 +111,25 @@ enum MasterVideosSubcommands {
     Print {
         #[arg(long)]
         id: u32,
+    },
+}
+
+/// Manage news broadcasts, networks and affiliates.
+#[derive(Subcommand, Debug)]
+enum NewsSubcommands {
+    #[clap(subcommand)]
+    Networks(NewsNetworksSubcommands),
+}
+
+/// Manage news broadcasts
+#[derive(Subcommand, Debug)]
+enum NewsNetworksSubcommands {
+    /// Add a news network
+    #[clap(name = "add")]
+    Add {
+        /// Path to a file containing a populated news network template.
+        #[arg(long)]
+        path: Option<PathBuf>,
     },
 }
 
@@ -370,6 +391,41 @@ async fn main() -> Result<()> {
                 master_video.print();
                 Ok(())
             }
+        },
+        Commands::News(news_command) => match news_command {
+            NewsSubcommands::Networks(networks_command) => match networks_command {
+                NewsNetworksSubcommands::Add { path } => {
+                    let template =
+                        editing::build_news_network_editor_template(&NewsNetwork::default());
+                    let network = if let Some(path) = path {
+                        let edited_template = std::fs::read_to_string(path)?;
+                        editing::parse_news_network_editor_template(0, &edited_template)?
+                    } else {
+                        match Editor::new().edit(&template) {
+                            Ok(edited_template) => {
+                                if let Some(edited) = edited_template {
+                                    editing::parse_news_network_editor_template(0, &edited)?
+                                } else {
+                                    println!("New record will not be added to the database");
+                                    return Ok(());
+                                }
+                            }
+                            Err(_) => {
+                                return Err(eyre!(
+                                    "An unknown error occurred when editing the video"
+                                ));
+                            }
+                        }
+                    };
+
+                    let updated = db::save_news_network(network).await?;
+                    println!("=============");
+                    println!("Saved network");
+                    println!("=============");
+                    updated.print();
+                    Ok(())
+                }
+            },
         },
         Commands::Releases(releases_command) => match releases_command {
             ReleasesSubcommands::DownloadTorrents { path } => {

@@ -16,3 +16,9 @@ clean-db:
     sqlx database create
     sqlx migrate run
   )
+
+dev-database:
+  #!/usr/bin/env bash
+
+  cargo run -- news networks add --path resources/dev_test_data/abc_news_network
+  cargo run -- releases init --torrent-path resources/torrents
