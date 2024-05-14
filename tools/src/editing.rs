@@ -1,7 +1,8 @@
 use color_eyre::{eyre::eyre, Result};
 use db::helpers::{duration_to_string, interval_to_duration, parse_duration};
 use db::models::{
-    Category, EventTimestamp, MasterVideo, NewsBroadcast, NewsNetwork, Person, PersonType, Video,
+    Category, EventTimestamp, MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, Person,
+    PersonType, Video,
 };
 use sqlx::postgres::types::PgInterval;
 use std::path::PathBuf;
@@ -238,6 +239,56 @@ pub fn build_news_network_editor_template(network: &NewsNetwork) -> String {
     template
 }
 
+pub fn build_news_affiliate_editor_template(
+    affiliate: NewsAffiliate,
+    networks: &[NewsNetwork],
+) -> String {
+    let mut template = String::new();
+
+    template.push_str("Network:");
+    if affiliate.id != 0 {
+        template.push(' ');
+        template.push_str(&affiliate.network.name);
+        template.push('\n');
+    } else {
+        template.push_str("\n## CHOOSE ONE ##\n");
+        for network in networks.iter() {
+            template.push_str(&network.name);
+            template.push('\n');
+        }
+    }
+    template.push_str("---\n");
+
+    template.push_str("Name:");
+    if affiliate.id != 0 {
+        template.push(' ');
+        template.push_str(&affiliate.name);
+        template.push('\n');
+    } else {
+        template.push('\n');
+    }
+    template.push_str("---\n");
+
+    template.push_str("Description:");
+    if affiliate.description.is_empty() {
+        template.push('\n');
+    } else {
+        template.push('\n');
+        template.push_str(&affiliate.description);
+    }
+    template.push_str("---\n");
+
+    template.push_str("Region:");
+    if affiliate.description.is_empty() {
+        template.push('\n');
+    } else {
+        template.push('\n');
+        template.push_str(&affiliate.region);
+    }
+
+    template
+}
+
 pub fn parse_master_video_editor_template(
     id: i32,
     edited_template: &str,
@@ -457,6 +508,55 @@ pub fn parse_news_network_editor_template(id: i32, edited_template: &str) -> Res
         name,
     };
     Ok(network)
+}
+
+pub fn parse_news_affiliate_editor_template(
+    id: i32,
+    edited_template: &str,
+    networks: &[NewsNetwork],
+) -> Result<NewsAffiliate> {
+    let parts: Vec<_> = edited_template.split("---\n").collect();
+    if parts.len() != 4 {
+        return Err(eyre!("Edited template was not in expected format"));
+    }
+
+    let network_input = parts[0].trim_start_matches("Network: ").trim().to_string();
+    let network = networks
+        .iter()
+        .find(|n| n.name == network_input)
+        .ok_or_else(|| eyre!("{network_input} is not in the networks list"))?;
+
+    let name = parts[1].trim_start_matches("Name: ").trim().to_string();
+    if name.is_empty() {
+        return Err(eyre!("A name is required for the news affiliate"));
+    }
+
+    let description = parts[2]
+        .trim_start_matches("Description:")
+        .trim_start_matches(':')
+        .trim()
+        .to_string();
+    if description.is_empty() {
+        return Err(eyre!("A description is required for the news affiliate"));
+    }
+
+    let region = parts[3]
+        .trim_start_matches("Region:")
+        .trim_start_matches(':')
+        .trim()
+        .to_string();
+    if region.is_empty() {
+        return Err(eyre!("A region is required for the news affiliate"));
+    }
+
+    let affiliate = NewsAffiliate {
+        description,
+        id,
+        name,
+        network: network.clone(),
+        region,
+    };
+    Ok(affiliate)
 }
 
 fn get_people_from_input(

@@ -487,13 +487,27 @@ impl NewsNetwork {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct NewsAffiliate {
     pub id: i32,
     pub name: String,
     pub description: String,
     pub region: String,
     pub network: NewsNetwork,
+}
+
+impl NewsAffiliate {
+    pub fn print(&self) {
+        println!("ID: {}", self.id);
+        println!("---");
+        println!("Name: {}", self.name);
+        println!("---");
+        println!("Description:\n{}", self.description);
+        println!("---");
+        println!("Region:\n{}", self.region);
+        println!("---");
+        println!("Network:\n{}", self.network.name);
+    }
 }
 
 #[derive(Clone, Debug)]

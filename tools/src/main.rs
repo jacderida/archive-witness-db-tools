@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
 use db::{
     cumulus::*,
-    models::{MasterVideo, NewsNetwork, Video},
+    models::{MasterVideo, NewsAffiliate, NewsNetwork, Video},
 };
 use dialoguer::Editor;
 use std::collections::HashSet;
@@ -118,16 +118,30 @@ enum MasterVideosSubcommands {
 #[derive(Subcommand, Debug)]
 enum NewsSubcommands {
     #[clap(subcommand)]
+    Affiliates(NewsAffiliatesSubcommands),
+    #[clap(subcommand)]
     Networks(NewsNetworksSubcommands),
 }
 
-/// Manage news broadcasts
+/// Manage news networks
 #[derive(Subcommand, Debug)]
 enum NewsNetworksSubcommands {
     /// Add a news network
     #[clap(name = "add")]
     Add {
         /// Path to a file containing a populated news network template.
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+}
+
+/// Manage news affiliates
+#[derive(Subcommand, Debug)]
+enum NewsAffiliatesSubcommands {
+    /// Add a news affiliate
+    #[clap(name = "add")]
+    Add {
+        /// Path to a file containing a populated news affiliate template.
         #[arg(long)]
         path: Option<PathBuf>,
     },
@@ -393,6 +407,48 @@ async fn main() -> Result<()> {
             }
         },
         Commands::News(news_command) => match news_command {
+            NewsSubcommands::Affiliates(affiliates_command) => match affiliates_command {
+                NewsAffiliatesSubcommands::Add { path } => {
+                    let networks = db::get_news_networks(None).await?;
+                    let template = editing::build_news_affiliate_editor_template(
+                        NewsAffiliate::default(),
+                        &networks,
+                    );
+                    let affiliate = if let Some(path) = path {
+                        let edited_template = std::fs::read_to_string(path)?;
+                        editing::parse_news_affiliate_editor_template(
+                            0,
+                            &edited_template,
+                            &networks,
+                        )?
+                    } else {
+                        match Editor::new().edit(&template) {
+                            Ok(edited_template) => {
+                                if let Some(edited) = edited_template {
+                                    editing::parse_news_affiliate_editor_template(
+                                        0, &edited, &networks,
+                                    )?
+                                } else {
+                                    println!("New record will not be added to the database");
+                                    return Ok(());
+                                }
+                            }
+                            Err(_) => {
+                                return Err(eyre!(
+                                    "An unknown error occurred when editing the video"
+                                ));
+                            }
+                        }
+                    };
+
+                    let updated = db::save_news_affiliate(affiliate).await?;
+                    println!("===============");
+                    println!("Saved affiliate");
+                    println!("===============");
+                    updated.print();
+                    Ok(())
+                }
+            },
             NewsSubcommands::Networks(networks_command) => match networks_command {
                 NewsNetworksSubcommands::Add { path } => {
                     let template =

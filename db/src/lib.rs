@@ -586,6 +586,50 @@ pub async fn save_news_network(network: NewsNetwork) -> Result<NewsNetwork> {
     Ok(updated_network)
 }
 
+pub async fn save_news_affiliate(affiliate: NewsAffiliate) -> Result<NewsAffiliate> {
+    let pool = establish_connection().await?;
+
+    let affiliate_id = if affiliate.id == 0 {
+        sqlx::query!(
+            r#"
+                INSERT INTO news_affiliates (name, description, region, news_network_id)
+                VALUES ($1, $2, $3, $4)
+                RETURNING id
+            "#,
+            affiliate.name,
+            affiliate.description,
+            affiliate.region,
+            affiliate.network.id,
+        )
+        .fetch_one(&pool)
+        .await?
+        .id
+    } else {
+        sqlx::query!(
+            r#"INSERT INTO news_affiliates (id, name, description, region, news_network_id)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (id) DO UPDATE SET
+                   name = EXCLUDED.name,
+                   description = EXCLUDED.description,
+                   region = EXCLUDED.region,
+                   news_network_id = EXCLUDED.news_network_id
+               RETURNING id"#,
+            affiliate.id,
+            affiliate.name,
+            affiliate.description,
+            affiliate.region,
+            affiliate.network.id,
+        )
+        .fetch_one(&pool)
+        .await?
+        .id
+    };
+
+    let mut updated_affiliate = affiliate.clone();
+    updated_affiliate.id = affiliate_id;
+    Ok(updated_affiliate)
+}
+
 pub async fn save_master_video(video: MasterVideo) -> Result<MasterVideo> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
