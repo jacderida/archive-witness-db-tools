@@ -40,30 +40,6 @@ pub struct Release {
     pub files: Vec<ReleaseFile>,
 }
 
-#[derive(sqlx::Type)]
-#[sqlx(type_name = "content_type", rename_all = "lowercase")]
-pub enum ContentType {
-    Image,
-    Video,
-}
-
-impl ContentType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ContentType::Image => "image",
-            ContentType::Video => "video",
-        }
-    }
-}
-
-#[derive(FromRow)]
-pub struct Content {
-    pub id: i32,
-    pub content_type: ContentType,
-    pub file_path: Option<String>,
-    pub release_id: Option<i32>,
-}
-
 #[derive(FromRow)]
 pub struct Photographer {
     pub id: i32,

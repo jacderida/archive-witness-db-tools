@@ -11,7 +11,7 @@ clean-db:
       AND pid <> pg_backend_pid();"
   psql -U postgres -h localhost -d postgres -c "$pg_command"
   (
-    cd archive-wit-db
+    cd db
     sqlx database drop --force
     sqlx database create
     sqlx migrate run

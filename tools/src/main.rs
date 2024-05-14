@@ -1,10 +1,8 @@
 pub mod editing;
 pub mod helpers;
-pub mod images;
 pub mod releases;
 pub mod static_data;
 
-use crate::images::*;
 use crate::releases::*;
 use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
@@ -29,8 +27,6 @@ enum Commands {
     AccessDb(AccessDbSubcommands),
     #[clap(subcommand)]
     Cumulus(CumulusSubcommands),
-    #[clap(subcommand)]
-    Images(ImagesSubcommands),
     #[clap(subcommand, name = "masters")]
     MasterVideos(MasterVideosSubcommands),
     #[clap(subcommand)]
@@ -89,34 +85,6 @@ enum CumulusSubcommands {
         /// Path to the Cumulus data dump file
         #[arg(long)]
         cumulus_export_path: PathBuf,
-    },
-}
-
-/// Manage images
-#[derive(Subcommand, Debug)]
-enum ImagesSubcommands {
-    /// Convert the Cumulus photo export to a CSV
-    #[clap(name = "convert")]
-    Convert {
-        /// Path to the Cumulus data dump file
-        #[arg(long)]
-        cumulus_export_path: PathBuf,
-        /// Path to the output CSV file
-        #[arg(long)]
-        out_path: PathBuf,
-    },
-    /// Import image content from a release.
-    #[clap(name = "import")]
-    Import {
-        /// Path to the Cumulus data dump file
-        #[arg(long)]
-        cumulus_export_path: PathBuf,
-        /// The ID of the release
-        #[arg(long)]
-        release_id: u16,
-        /// Path to the base 911datasets.org directory
-        #[arg(long)]
-        releases_base_path: PathBuf,
     },
 }
 
@@ -311,31 +279,6 @@ async fn main() -> Result<()> {
                 fields.sort();
                 println!("{} fields:", fields.len());
                 println!("{}", fields.join(", "));
-                Ok(())
-            }
-        },
-        Commands::Images(images_command) => match images_command {
-            ImagesSubcommands::Convert {
-                cumulus_export_path,
-                out_path,
-            } => {
-                println!(
-                    "Converting {} to {}",
-                    cumulus_export_path.to_string_lossy(),
-                    out_path.to_string_lossy()
-                );
-                println!("This can take 30 to 60 seconds...");
-                convert_images_to_csv(cumulus_export_path, out_path)?;
-                Ok(())
-            }
-            ImagesSubcommands::Import {
-                cumulus_export_path,
-                release_id,
-                releases_base_path,
-            } => {
-                let images = read_cumulus_export::<_, CumulusImage>(cumulus_export_path)?;
-                println!("Retrieved {} images from the Cumulus export", images.len());
-                import_images(release_id as i32, images, &releases_base_path).await?;
                 Ok(())
             }
         },
