@@ -485,6 +485,10 @@ impl NewsNetwork {
         println!("---");
         println!("Description:\n{}", self.description);
     }
+
+    pub fn print_row(&self) {
+        println!("{}, {}, {}", self.id, self.name, self.description);
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]

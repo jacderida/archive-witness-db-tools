@@ -144,6 +144,9 @@ enum NewsNetworksSubcommands {
         #[arg(long)]
         id: u32,
     },
+    /// List all news networks
+    #[clap(name = "ls")]
+    Ls {},
     /// Print a news network
     #[clap(name = "print")]
     Print {
@@ -514,6 +517,13 @@ async fn main() -> Result<()> {
                     println!("Saved network");
                     println!("=============");
                     updated.print();
+                    Ok(())
+                }
+                NewsNetworksSubcommands::Ls {} => {
+                    let networks = db::get_news_networks(None).await?;
+                    for network in networks.iter() {
+                        network.print_row();
+                    }
                     Ok(())
                 }
                 NewsNetworksSubcommands::Print { id } => {
