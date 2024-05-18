@@ -28,13 +28,13 @@ impl Form {
         }
 
         let mut form = Form::new();
-        form.add_field(Box::new(ChoiceField::from_input_str("Network", parts[0])?));
-        form.add_field(Box::new(TextField::from_input_str("Name", &parts[1])?));
+        form.add_field(Box::new(TextField::from_input_str("Name", &parts[0])?));
         form.add_field(Box::new(MultilineTextField::from_input_str(
             "Description",
-            &parts[2],
+            &parts[1],
         )?));
-        form.add_field(Box::new(TextField::from_input_str("Region", &parts[3])?));
+        form.add_field(Box::new(TextField::from_input_str("Region", &parts[2])?));
+        form.add_field(Box::new(ChoiceField::from_input_str("Network", parts[3])?));
 
         Ok(form)
     }

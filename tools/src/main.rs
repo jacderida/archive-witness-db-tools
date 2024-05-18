@@ -166,6 +166,13 @@ enum NewsAffiliatesSubcommands {
         #[arg(long)]
         path: Option<PathBuf>,
     },
+    /// Edit a news affiliate
+    #[clap(name = "edit")]
+    Edit {
+        /// The ID of the affiliate to edit
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 /// Manage 911datasets.org releases
@@ -450,6 +457,36 @@ async fn main() -> Result<()> {
                                     "An unknown error occurred when editing the video"
                                 ));
                             }
+                        }
+                    };
+
+                    let updated = db::save_news_affiliate(affiliate).await?;
+                    println!("===============");
+                    println!("Saved affiliate");
+                    println!("===============");
+                    updated.print();
+                    Ok(())
+                }
+                NewsAffiliatesSubcommands::Edit { id } => {
+                    let networks = db::get_news_networks(None).await?;
+                    let affiliate = db::get_news_affiliate(id as i32, None).await?;
+                    let form = Form::from(&affiliate);
+                    let affiliate = match Editor::new().edit(&form.as_string()) {
+                        Ok(completed_form) => {
+                            if let Some(cf) = completed_form {
+                                let form = Form::from_news_affiliate_str(&cf)?;
+                                editing::news::news_affiliate_from_form(
+                                    affiliate.id,
+                                    &form,
+                                    &networks,
+                                )?
+                            } else {
+                                println!("New record will not be added to the database");
+                                return Ok(());
+                            }
+                        }
+                        Err(_) => {
+                            return Err(eyre!("An unknown error occurred when editing the video"));
                         }
                     };
 
