@@ -137,6 +137,13 @@ enum NewsNetworksSubcommands {
         #[arg(long)]
         path: Option<PathBuf>,
     },
+    /// Edit a news network
+    #[clap(name = "edit")]
+    Edit {
+        /// The ID of the network to edit
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 /// Manage news affiliates
@@ -467,6 +474,31 @@ async fn main() -> Result<()> {
                                     "An unknown error occurred when editing the video"
                                 ));
                             }
+                        }
+                    };
+
+                    let updated = db::save_news_network(network).await?;
+                    println!("=============");
+                    println!("Saved network");
+                    println!("=============");
+                    updated.print();
+                    Ok(())
+                }
+                NewsNetworksSubcommands::Edit { id } => {
+                    let network = db::get_news_network(id as i32, None).await?;
+                    let form = Form::from(&network);
+                    let network = match Editor::new().edit(&form.as_string()) {
+                        Ok(completed_form) => {
+                            if let Some(cf) = completed_form {
+                                let form = Form::from_news_network_str(&cf)?;
+                                editing::news::news_network_from_form(network.id, &form)?
+                            } else {
+                                println!("New record will not be added to the database");
+                                return Ok(());
+                            }
+                        }
+                        Err(_) => {
+                            return Err(eyre!("An unknown error occurred when editing the video"));
                         }
                     };
 

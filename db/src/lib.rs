@@ -361,6 +361,22 @@ pub async fn get_news_networks(pool: Option<Pool<Postgres>>) -> Result<Vec<NewsN
     Ok(news_networks)
 }
 
+pub async fn get_news_network(id: i32, pool: Option<Pool<Postgres>>) -> Result<NewsNetwork> {
+    let pool = if let Some(p) = pool {
+        p
+    } else {
+        establish_connection().await?
+    };
+    let news_network = sqlx::query_as!(
+        NewsNetwork,
+        "SELECT id, name, description FROM news_networks WHERE id = $1",
+        id
+    )
+    .fetch_one(&pool)
+    .await?;
+    Ok(news_network)
+}
+
 pub async fn get_news_affiliates(pool: Option<Pool<Postgres>>) -> Result<Vec<NewsAffiliate>> {
     let pool = if let Some(p) = pool {
         p
