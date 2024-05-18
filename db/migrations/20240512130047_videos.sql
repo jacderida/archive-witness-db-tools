@@ -25,7 +25,7 @@ CREATE TABLE master_videos (
     categories category[] NOT NULL,
     title VARCHAR NOT NULL UNIQUE,
     date DATE,
-    description TEXT,
+    description TEXT NOT NULL,
     links VARCHAR[],
     nist_notes TEXT
 );

@@ -4,6 +4,7 @@ database_name := "archive_witness"
 
 clean-db:
   #!/usr/bin/env bash
+  set -e
 
   pg_command="SELECT pg_terminate_backend(pg_stat_activity.pid) \
     FROM pg_stat_activity \
@@ -19,6 +20,7 @@ clean-db:
 
 dev-database:
   #!/usr/bin/env bash
+  set -e
 
   cargo run -- news networks add --path resources/dev_test_data/abc_news_network
   cargo run -- news affiliates add --path resources/dev_test_data/wabc_affiliate

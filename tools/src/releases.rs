@@ -259,7 +259,7 @@ pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
             video.id.to_string(),
             video.title.clone(),
             video.date.map_or("".to_string(), |d| d.to_string()),
-            video.description.clone().unwrap_or("".to_string()),
+            video.description.clone(),
         ])?;
     }
 

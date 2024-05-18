@@ -598,7 +598,7 @@ pub struct Person {
 pub struct MasterVideo {
     pub categories: Vec<Category>,
     pub date: Option<NaiveDate>,
-    pub description: Option<String>,
+    pub description: String,
     pub id: i32,
     pub links: Vec<String>,
     pub news_broadcasts: Vec<NewsBroadcast>,
@@ -636,11 +636,7 @@ impl MasterVideo {
         );
         println!("---");
 
-        if let Some(description) = &self.description {
-            println!("Description:\n{}", description);
-        } else {
-            println!("Description:");
-        }
+        println!("Description:\n{}", self.description);
         println!("---");
 
         if self.categories.is_empty() {

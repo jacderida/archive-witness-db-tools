@@ -11,6 +11,7 @@ use db::{
     models::{MasterVideo, NewsAffiliate, NewsNetwork, Video},
 };
 use dialoguer::Editor;
+use editing::forms::Form;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -94,9 +95,12 @@ enum CumulusSubcommands {
 #[derive(Subcommand, Debug)]
 enum MasterVideosSubcommands {
     /// Add a master video using an interactive editor.
+    ///
+    /// The path argument can be used to add a record in a non-interactive fashion, by providing a
+    /// completed master video form.
     #[clap(name = "add")]
     Add {
-        /// Path to a file containing a populated video template.
+        /// Path to a file containing a completed master video form.
         #[arg(long)]
         path: Option<PathBuf>,
     },
@@ -322,24 +326,22 @@ async fn main() -> Result<()> {
                 let news_broadcasts = db::get_news_broadcasts().await?;
                 let people = db::get_people().await?;
                 let video = if let Some(path) = path {
-                    let edited_template = std::fs::read_to_string(path)?;
-                    editing::parse_master_video_editor_template(
-                        0,
-                        &edited_template,
-                        &news_broadcasts,
-                        &people,
-                    )?
+                    let completed_form = std::fs::read_to_string(path)?;
+                    let form = Form::from_master_video_str(&completed_form)?;
+                    editing::masters::master_video_from_form(0, &form, &news_broadcasts, &people)?
                 } else {
-                    let template = editing::build_master_video_editor_template(
-                        &MasterVideo::default(),
-                        &news_broadcasts,
-                    );
-                    match Editor::new().edit(&template) {
-                        Ok(edited_template) => {
-                            if let Some(edited) = edited_template {
-                                editing::parse_master_video_editor_template(
+                    let mut form = Form::from(&MasterVideo::default());
+                    form.add_choices(
+                        "News Broadcasts",
+                        news_broadcasts.iter().map(|b| b.to_string()).collect(),
+                    )?;
+                    match Editor::new().edit(&form.as_string()) {
+                        Ok(completed_form) => {
+                            if let Some(cf) = completed_form {
+                                let form = Form::from_master_video_str(&cf)?;
+                                editing::masters::master_video_from_form(
                                     0,
-                                    &edited,
+                                    &form,
                                     &news_broadcasts,
                                     &people,
                                 )?
@@ -369,14 +371,14 @@ async fn main() -> Result<()> {
                 let people = db::get_people().await?;
                 let master_video = db::get_master_video(id as i32, None).await?;
 
-                let template =
-                    editing::build_master_video_editor_template(&master_video, &news_broadcasts);
-                let edited_master = match Editor::new().edit(&template) {
-                    Ok(edited_template) => {
-                        if let Some(edited) = edited_template {
-                            editing::parse_master_video_editor_template(
+                let form = Form::from(&master_video);
+                let edited_master = match Editor::new().edit(&form.as_string()) {
+                    Ok(completed_form) => {
+                        if let Some(cf) = completed_form {
+                            let form = Form::from_master_video_str(&cf)?;
+                            editing::masters::master_video_from_form(
                                 master_video.id,
-                                &edited,
+                                &form,
                                 &news_broadcasts,
                                 &people,
                             )?
@@ -410,24 +412,17 @@ async fn main() -> Result<()> {
             NewsSubcommands::Affiliates(affiliates_command) => match affiliates_command {
                 NewsAffiliatesSubcommands::Add { path } => {
                     let networks = db::get_news_networks(None).await?;
-                    let template = editing::build_news_affiliate_editor_template(
-                        NewsAffiliate::default(),
-                        &networks,
-                    );
                     let affiliate = if let Some(path) = path {
-                        let edited_template = std::fs::read_to_string(path)?;
-                        editing::parse_news_affiliate_editor_template(
-                            0,
-                            &edited_template,
-                            &networks,
-                        )?
+                        let completed_form = std::fs::read_to_string(path)?;
+                        let form = Form::from_news_affiliate_str(&completed_form)?;
+                        editing::news::news_affiliate_from_form(0, &form, &networks)?
                     } else {
-                        match Editor::new().edit(&template) {
-                            Ok(edited_template) => {
-                                if let Some(edited) = edited_template {
-                                    editing::parse_news_affiliate_editor_template(
-                                        0, &edited, &networks,
-                                    )?
+                        let form = Form::from(&NewsAffiliate::default());
+                        match Editor::new().edit(&form.as_string()) {
+                            Ok(completed_form) => {
+                                if let Some(cf) = completed_form {
+                                    let form = Form::from_news_affiliate_str(&cf)?;
+                                    editing::news::news_affiliate_from_form(0, &form, &networks)?
                                 } else {
                                     println!("New record will not be added to the database");
                                     return Ok(());
@@ -451,16 +446,17 @@ async fn main() -> Result<()> {
             },
             NewsSubcommands::Networks(networks_command) => match networks_command {
                 NewsNetworksSubcommands::Add { path } => {
-                    let template =
-                        editing::build_news_network_editor_template(&NewsNetwork::default());
                     let network = if let Some(path) = path {
-                        let edited_template = std::fs::read_to_string(path)?;
-                        editing::parse_news_network_editor_template(0, &edited_template)?
+                        let completed_form = std::fs::read_to_string(path)?;
+                        let form = Form::from_news_network_str(&completed_form)?;
+                        editing::news::news_network_from_form(0, &form)?
                     } else {
-                        match Editor::new().edit(&template) {
-                            Ok(edited_template) => {
-                                if let Some(edited) = edited_template {
-                                    editing::parse_news_network_editor_template(0, &edited)?
+                        let form = Form::from(&NewsNetwork::default());
+                        match Editor::new().edit(&form.as_string()) {
+                            Ok(completed_form) => {
+                                if let Some(cf) = completed_form {
+                                    let form = Form::from_news_network_str(&cf)?;
+                                    editing::news::news_network_from_form(0, &form)?
                                 } else {
                                     println!("New record will not be added to the database");
                                     return Ok(());
@@ -541,16 +537,19 @@ async fn main() -> Result<()> {
             VideosSubcommands::Add { path } => {
                 let masters = db::get_master_videos().await?;
                 let video = Video::default();
-                let template = editing::build_video_editor_template(&video, &masters);
 
                 let video = if let Some(path) = path {
-                    let edited_template = std::fs::read_to_string(path)?;
-                    editing::parse_video_editor_template(video.id, &edited_template, &masters)?
+                    let completed_form = std::fs::read_to_string(path)?;
+                    let form = Form::from_video_str(&completed_form)?;
+                    editing::videos::video_from_form(video.id, &form, &masters)?
                 } else {
-                    match Editor::new().edit(&template) {
-                        Ok(edited_template) => {
-                            if let Some(edited) = edited_template {
-                                editing::parse_video_editor_template(video.id, &edited, &masters)?
+                    let mut form = Form::from(&Video::default());
+                    form.add_choices("Master", masters.iter().map(|m| m.title.clone()).collect())?;
+                    match Editor::new().edit(&form.as_string()) {
+                        Ok(completed_form) => {
+                            if let Some(cf) = completed_form {
+                                let form = Form::from_video_str(&cf)?;
+                                editing::videos::video_from_form(video.id, &form, &masters)?
                             } else {
                                 println!("New record will not be added to the database");
                                 return Ok(());
@@ -586,12 +585,13 @@ async fn main() -> Result<()> {
             VideosSubcommands::Edit { id } => {
                 let masters = db::get_master_videos().await?;
                 let video = db::get_video(id as i32, None).await?;
-                let template = editing::build_video_editor_template(&video, &masters);
 
-                let edited_video = match Editor::new().edit(&template) {
-                    Ok(edited_template) => {
-                        if let Some(edited) = edited_template {
-                            editing::parse_video_editor_template(video.id, &edited, &masters)?
+                let form = Form::from(&video);
+                let edited_video = match Editor::new().edit(&form.as_string()) {
+                    Ok(completed_form) => {
+                        if let Some(cf) = completed_form {
+                            let form = Form::from_video_str(&cf)?;
+                            editing::videos::video_from_form(video.id, &form, &masters)?
                         } else {
                             println!("Changes to the video record will not be saved");
                             return Ok(());
