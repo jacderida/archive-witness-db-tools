@@ -173,6 +173,9 @@ enum NewsAffiliatesSubcommands {
         #[arg(long)]
         id: u32,
     },
+    /// List all news affiliates
+    #[clap(name = "ls")]
+    Ls {},
     /// Print a news affiliate
     #[clap(name = "print")]
     Print {
@@ -502,6 +505,13 @@ async fn main() -> Result<()> {
                     println!("Saved affiliate");
                     println!("===============");
                     updated.print();
+                    Ok(())
+                }
+                NewsAffiliatesSubcommands::Ls {} => {
+                    let affiliates = db::get_news_affiliates(None).await?;
+                    for affiliate in affiliates.iter() {
+                        affiliate.print_row();
+                    }
                     Ok(())
                 }
                 NewsAffiliatesSubcommands::Print { id } => {

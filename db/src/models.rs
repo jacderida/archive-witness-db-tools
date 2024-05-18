@@ -512,6 +512,13 @@ impl NewsAffiliate {
         println!("---");
         println!("Network:\n{}", self.network.name);
     }
+
+    pub fn print_row(&self) {
+        println!(
+            "{}, {}, {}, {}",
+            self.id, self.name, self.region, self.network.name
+        );
+    }
 }
 
 #[derive(Clone, Debug)]
