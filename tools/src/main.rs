@@ -144,6 +144,13 @@ enum NewsNetworksSubcommands {
         #[arg(long)]
         id: u32,
     },
+    /// Print a news network
+    #[clap(name = "print")]
+    Print {
+        /// The ID of the network to edit
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 /// Manage news affiliates
@@ -507,6 +514,11 @@ async fn main() -> Result<()> {
                     println!("Saved network");
                     println!("=============");
                     updated.print();
+                    Ok(())
+                }
+                NewsNetworksSubcommands::Print { id } => {
+                    let network = db::get_news_network(id as i32, None).await?;
+                    network.print();
                     Ok(())
                 }
             },
