@@ -173,6 +173,13 @@ enum NewsAffiliatesSubcommands {
         #[arg(long)]
         id: u32,
     },
+    /// Print a news affiliate
+    #[clap(name = "print")]
+    Print {
+        /// The ID of the affiliate to print
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 /// Manage 911datasets.org releases
@@ -495,6 +502,11 @@ async fn main() -> Result<()> {
                     println!("Saved affiliate");
                     println!("===============");
                     updated.print();
+                    Ok(())
+                }
+                NewsAffiliatesSubcommands::Print { id } => {
+                    let affiliate = db::get_news_affiliate(id as i32, None).await?;
+                    affiliate.print();
                     Ok(())
                 }
             },
