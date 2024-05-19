@@ -204,6 +204,9 @@ enum NewsBroadcastsSubcommands {
         #[arg(long)]
         id: u32,
     },
+    /// List all news broadcasts
+    #[clap(name = "ls")]
+    Ls {},
     /// Print a news broadcast
     #[clap(name = "print")]
     Print {
@@ -628,6 +631,13 @@ async fn main() -> Result<()> {
                     println!("Saved broadcast");
                     println!("===============");
                     updated.print();
+                    Ok(())
+                }
+                NewsBroadcastsSubcommands::Ls {} => {
+                    let broadcasts = db::get_news_broadcasts().await?;
+                    for broadcast in broadcasts.iter() {
+                        broadcast.print_row();
+                    }
                     Ok(())
                 }
                 NewsBroadcastsSubcommands::Print { id } => {

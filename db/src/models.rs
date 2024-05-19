@@ -546,6 +546,22 @@ impl NewsBroadcast {
         println!("---");
         println!("Description:\n{}", self.description);
     }
+
+    pub fn print_row(&self) {
+        let network_or_affiliate = if let Some(network) = &self.news_network {
+            &network.name
+        } else if let Some(affiliate) = &self.news_affiliate {
+            &affiliate.name
+        } else {
+            panic!("Broadcast does not have an affiliate or a network");
+        };
+        println!(
+            "{}, {}, {}",
+            self.id,
+            self.date.to_string(),
+            network_or_affiliate
+        );
+    }
 }
 
 impl std::fmt::Display for NewsBroadcast {

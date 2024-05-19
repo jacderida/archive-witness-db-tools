@@ -506,7 +506,10 @@ pub async fn get_news_broadcasts() -> Result<Vec<NewsBroadcast>> {
 
     let mut news_broadcasts = Vec::new();
     let rows = sqlx::query!(
-        "SELECT id, date, description, news_network_id, news_affiliate_id FROM news_broadcasts"
+        r#"
+            SELECT id, date, description, news_network_id, news_affiliate_id FROM news_broadcasts
+            ORDER BY id
+        "#
     )
     .fetch_all(&pool)
     .await?;
