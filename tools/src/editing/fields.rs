@@ -588,10 +588,14 @@ impl FormField for OptionalChoiceField {
         let val = self.value();
         if val.is_empty() {
             s.push('\n');
-            s.push_str("## CHOOSE ONE OR NONE ##\n");
-            for choice in self.choices.iter() {
-                s.push_str(choice);
-                s.push('\n');
+            // The check here is to support edits, where the initial choice has already been made.
+            // On edit commands, the choices don't get populated.
+            if !self.choices.is_empty() {
+                s.push_str("## CHOOSE ONE OR NONE ##\n");
+                for choice in self.choices.iter() {
+                    s.push_str(choice);
+                    s.push('\n');
+                }
             }
         } else {
             s.push_str(&format!(" {val}"));

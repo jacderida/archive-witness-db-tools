@@ -197,6 +197,13 @@ enum NewsBroadcastsSubcommands {
         #[arg(long)]
         path: Option<PathBuf>,
     },
+    /// Edit a news broadcast
+    #[clap(name = "edit")]
+    Edit {
+        /// The ID of the broadcast to edit
+        #[arg(long)]
+        id: u32,
+    },
 }
 
 /// Manage 911datasets.org releases
@@ -573,6 +580,39 @@ async fn main() -> Result<()> {
                                     "An unknown error occurred when editing the video"
                                 ));
                             }
+                        }
+                    };
+
+                    let updated = db::save_news_broadcast(broadcast).await?;
+                    println!("===============");
+                    println!("Saved broadcast");
+                    println!("===============");
+                    updated.print();
+                    Ok(())
+                }
+                NewsBroadcastsSubcommands::Edit { id } => {
+                    let networks = db::get_news_networks(None).await?;
+                    let affiliates = db::get_news_affiliates(None).await?;
+                    let broadcast = db::get_news_broadcast(id as i32, None).await?;
+                    let form = Form::from(&broadcast);
+
+                    let broadcast = match Editor::new().edit(&form.as_string()) {
+                        Ok(completed_form) => {
+                            if let Some(cf) = completed_form {
+                                let form = Form::from_news_broadcast_str(&cf)?;
+                                editing::news::news_broadcast_from_form(
+                                    broadcast.id,
+                                    &form,
+                                    &networks,
+                                    &affiliates,
+                                )?
+                            } else {
+                                println!("New record will not be added to the database");
+                                return Ok(());
+                            }
+                        }
+                        Err(_) => {
+                            return Err(eyre!("An unknown error occurred when editing the video"));
                         }
                     };
 

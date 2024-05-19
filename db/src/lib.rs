@@ -437,6 +437,44 @@ pub async fn get_news_affiliate(id: i32, pool: Option<Pool<Postgres>>) -> Result
     })
 }
 
+pub async fn get_news_broadcast(id: i32, pool: Option<Pool<Postgres>>) -> Result<NewsBroadcast> {
+    let pool = if let Some(p) = pool {
+        p
+    } else {
+        establish_connection().await?
+    };
+
+    let row = sqlx::query!(
+        r#"
+            SELECT id, date, description, news_network_id, news_affiliate_id FROM news_broadcasts
+            WHERE id = $1
+        "#,
+        id
+    )
+    .fetch_one(&pool)
+    .await?;
+
+    let network = if let Some(network_id) = row.news_network_id {
+        Some(get_news_network(network_id, Some(pool.clone())).await?)
+    } else {
+        None
+    };
+
+    let affiliate = if let Some(affiliate_id) = row.news_affiliate_id {
+        Some(get_news_affiliate(affiliate_id, Some(pool.clone())).await?)
+    } else {
+        None
+    };
+
+    Ok(NewsBroadcast {
+        date: row.date,
+        description: row.description,
+        id: row.id,
+        news_network: network,
+        news_affiliate: affiliate,
+    })
+}
+
 pub async fn get_news_broadcasts() -> Result<Vec<NewsBroadcast>> {
     let pool = establish_connection().await?;
 
