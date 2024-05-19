@@ -289,7 +289,8 @@ pub async fn get_video(id: i32, pool: Option<Pool<Postgres>>) -> Result<Video> {
 
     let row = sqlx::query!(
         r#"
-            SELECT id, description, duration, is_primary, link, master_id, title FROM videos
+            SELECT id, channel_username, description, duration, is_primary, link, master_id, title
+            FROM videos
             WHERE id = $1
         "#,
         id
@@ -299,6 +300,7 @@ pub async fn get_video(id: i32, pool: Option<Pool<Postgres>>) -> Result<Video> {
 
     let master = get_master_video(row.id, Some(pool.clone())).await?;
     let video = Video {
+        channel_username: row.channel_username,
         description: row.description,
         duration: row.duration,
         id: row.id,
@@ -971,9 +973,13 @@ pub async fn save_video(video: Video) -> Result<Video> {
 
     let video_id = if video.id == 0 {
         sqlx::query!(
-            r#"INSERT INTO videos (description, duration, is_primary, link, master_id, title)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               RETURNING id"#,
+            r#"
+                INSERT INTO videos (
+                    channel_username, description, duration, is_primary, link, master_id, title)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING id
+            "#,
+            video.channel_username,
             video.description,
             video.duration,
             video.is_primary,
@@ -986,17 +992,21 @@ pub async fn save_video(video: Video) -> Result<Video> {
         .id
     } else {
         sqlx::query!(
-            r#"INSERT INTO videos (id, description, duration, is_primary, link, master_id, title)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
-               ON CONFLICT (id) DO UPDATE SET
-                   description = EXCLUDED.description,
-                   duration = EXCLUDED.duration,
-                   is_primary = EXCLUDED.is_primary,
-                   link = EXCLUDED.link,
-                   master_id = EXCLUDED.master_id,
-                   title = EXCLUDED.title
-               RETURNING id"#,
+            r#"
+                INSERT INTO videos (
+                    id, channel_username, description, duration, is_primary, link, master_id, title)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (id) DO UPDATE SET
+                    description = EXCLUDED.description,
+                    duration = EXCLUDED.duration,
+                    is_primary = EXCLUDED.is_primary,
+                    link = EXCLUDED.link,
+                    master_id = EXCLUDED.master_id,
+                    title = EXCLUDED.title
+                RETURNING id
+           "#,
             video.id,
+            video.channel_username,
             video.description,
             video.duration,
             video.is_primary,

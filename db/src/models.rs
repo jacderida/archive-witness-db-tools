@@ -782,6 +782,7 @@ impl MasterVideo {
 
 #[derive(Clone)]
 pub struct Video {
+    pub channel_username: String,
     pub description: Option<String>,
     pub duration: PgInterval,
     pub id: i32,
@@ -796,6 +797,7 @@ use std::convert::TryFrom;
 impl Default for Video {
     fn default() -> Self {
         Self {
+            channel_username: String::new(),
             description: None,
             duration: PgInterval::try_from(parse_duration("0")).unwrap(),
             id: 0,
@@ -814,6 +816,8 @@ impl Video {
         println!("Master: {}", self.master.title);
         println!("---");
         println!("Title: {}", self.title);
+        println!("---");
+        println!("Channel: {}", self.channel_username);
         println!("---");
         println!(
             "Description:\n{}",

@@ -1,4 +1,5 @@
 use chrono::Duration;
+use regex::Regex;
 use sqlx::postgres::types::PgInterval;
 use std::path::{Path, PathBuf};
 
@@ -10,21 +11,31 @@ pub fn interval_to_duration(interval: &PgInterval) -> Duration {
 }
 
 pub fn parse_duration(time: &str) -> Duration {
-    let parts: Vec<&str> = time.split(':').collect();
-    if parts.len() == 3 {
-        let hours = parts[0].parse::<i64>().unwrap();
-        let minutes = parts[1].parse::<i64>().unwrap();
-        let seconds_parts: Vec<&str> = parts[2].split('.').collect();
-        let seconds = seconds_parts[0].parse::<i64>().unwrap();
-        let millis = if seconds_parts.len() > 1 {
-            seconds_parts[1].parse::<i64>().unwrap()
-        } else {
-            0
-        };
+    let re = Regex::new(r"^(\d+):(\d+):(\d+)(?:\.(\d+))?$").unwrap();
+    let re_min_sec = Regex::new(r"^(?:(\d+)m)?(?:(\d+)s)?$").unwrap();
+
+    if let Some(caps) = re.captures(time) {
+        let hours = caps[1].parse::<i64>().unwrap();
+        let minutes = caps[2].parse::<i64>().unwrap();
+        let seconds = caps[3].parse::<i64>().unwrap();
+        let millis = caps
+            .get(4)
+            .map_or(0, |m| m.as_str().parse::<i64>().unwrap());
         return Duration::milliseconds(
             hours * 3_600_000 + minutes * 60_000 + seconds * 1000 + millis,
         );
     }
+
+    if let Some(caps) = re_min_sec.captures(time) {
+        let minutes = caps
+            .get(1)
+            .map_or(0, |m| m.as_str().parse::<i64>().unwrap());
+        let seconds = caps
+            .get(2)
+            .map_or(0, |s| s.as_str().parse::<i64>().unwrap());
+        return Duration::milliseconds(minutes * 60_000 + seconds * 1000);
+    }
+
     Duration::zero()
 }
 

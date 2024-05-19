@@ -10,7 +10,7 @@ use sqlx::postgres::types::PgInterval;
 impl Form {
     pub fn from_video_str(s: &str) -> Result<Self, FormError> {
         let parts: Vec<_> = s.split("---\n").collect();
-        if parts.len() != 6 {
+        if parts.len() != 7 {
             return Err(FormError::MalformedForm);
         }
 
@@ -18,14 +18,15 @@ impl Form {
 
         form.add_field(Box::new(ChoiceField::from_input_str("Master", parts[0])?));
         form.add_field(Box::new(TextField::from_input_str("Title", &parts[1])?));
+        form.add_field(Box::new(TextField::from_input_str("Channel", &parts[2])?));
         form.add_field(Box::new(OptionalMultilineListField::from_input_str(
             "Description",
-            parts[2],
+            parts[3],
         )?));
-        form.add_field(Box::new(TextField::from_input_str("Link", &parts[3])?));
-        form.add_field(Box::new(TextField::from_input_str("Duration", &parts[4])?));
+        form.add_field(Box::new(TextField::from_input_str("Link", &parts[4])?));
+        form.add_field(Box::new(TextField::from_input_str("Duration", &parts[5])?));
         form.add_field(Box::new(BooleanField::from_input_str(
-            "Primary", &parts[5],
+            "Primary", &parts[6],
         )?));
 
         Ok(form)
@@ -38,6 +39,7 @@ impl From<&Video> for Form {
 
         form.add_field(Box::new(ChoiceField::new("Master", &video.master.title)));
         form.add_field(Box::new(TextField::new("Title", &video.title)));
+        form.add_field(Box::new(TextField::new("Channel", &video.channel_username)));
         form.add_field(Box::new(OptionalMultilineTextField::new(
             "Description",
             &video.description.as_ref().unwrap_or(&"".to_string()),
@@ -61,6 +63,7 @@ pub fn video_from_form(id: i32, form: &Form, masters: &[MasterVideo]) -> Result<
         .ok_or_else(|| eyre!("{master_title} is not in the master list"))?;
 
     let title = form.get_field("Title")?.value();
+    let channel_username = form.get_field("Channel")?.value();
     let description = form.get_field("Description")?.value();
     let description = if description.is_empty() {
         None
@@ -77,6 +80,7 @@ pub fn video_from_form(id: i32, form: &Form, masters: &[MasterVideo]) -> Result<
     let is_primary = is_primary.to_lowercase() == "yes";
 
     let video = Video {
+        channel_username,
         description,
         duration,
         id,

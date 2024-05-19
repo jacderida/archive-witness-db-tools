@@ -59,7 +59,8 @@ CREATE TABLE master_videos_people (
 
 CREATE TABLE videos (
     id SERIAL PRIMARY KEY,
-    title VARCHAR NOT NULL UNIQUE,
+    title VARCHAR NOT NULL,
+    channel_username VARCHAR NOT NULL,
     description TEXT,
     duration INTERVAL NOT NULL,
     link VARCHAR NOT NULL,

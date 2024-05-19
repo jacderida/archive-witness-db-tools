@@ -8,10 +8,12 @@ use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
 use db::{
     cumulus::*,
+    helpers::parse_duration,
     models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, Video},
 };
 use dialoguer::Editor;
 use editing::forms::Form;
+use sqlx::postgres::types::PgInterval;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -275,12 +277,30 @@ enum ReleasesSubcommands {
 /// Manage videos
 #[derive(Subcommand, Debug)]
 enum VideosSubcommands {
-    /// Add a video using an interactive editor or from a templated file.
+    /// Add a video to the database.
+    ///
+    /// It can be added in a few different ways:
+    ///
+    /// * When no arguments are supplied, an interactive editor is used.
+    /// * When the --path argument is used, a completed form can be supplied.
+    /// * When the --youtube-id argument is used, the video will be created based on the entry for
+    ///   that video in the SQLite database. The --master-id argument must be used in conjunction.
     #[clap(name = "add")]
     Add {
+        /// The ID of the master video.
+        ///
+        /// Use in conjunction with the --youtube-id argument.
+        #[arg(long)]
+        master_id: Option<u32>,
         /// Path to a file containing a populated video template.
         #[arg(long)]
         path: Option<PathBuf>,
+        /// The ID of a YouTube video in the SQLite database.
+        ///
+        /// If used, the --master-id argument must also be supplied to relate the video to a
+        /// master.
+        #[arg(long)]
+        youtube_id: Option<String>,
     },
     /// Convert the Cumulus video export to a CSV
     #[clap(name = "convert")]
@@ -773,22 +793,49 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Videos(videos_command) => match videos_command {
-            VideosSubcommands::Add { path } => {
-                let masters = db::get_master_videos().await?;
-                let video = Video::default();
+            VideosSubcommands::Add {
+                master_id,
+                path,
+                youtube_id,
+            } => {
+                let video = if let Some(youtube_id) = youtube_id {
+                    let master = db::get_master_video(
+                        master_id.ok_or_else(|| {
+                            eyre!("A master ID must be supplied along with a YouTube ID")
+                        })? as i32,
+                        None,
+                    )
+                    .await?;
+                    let yt_video = db_youtube::get_video(&youtube_id).await?;
 
-                let video = if let Some(path) = path {
+                    Video {
+                        channel_username: yt_video.channel_name,
+                        description: yt_video.description,
+                        duration: if let Some(duration) = yt_video.duration {
+                            PgInterval::try_from(parse_duration(&duration)).unwrap()
+                        } else {
+                            PgInterval::try_from(parse_duration("0")).unwrap()
+                        },
+                        id: 0,
+                        is_primary: false,
+                        link: format!("https://www.youtube.com/watch?v={youtube_id}"),
+                        master: master.clone(),
+                        title: yt_video.title,
+                    }
+                } else if let Some(path) = path {
+                    let masters = db::get_master_videos().await?;
                     let completed_form = std::fs::read_to_string(path)?;
                     let form = Form::from_video_str(&completed_form)?;
-                    editing::videos::video_from_form(video.id, &form, &masters)?
+                    editing::videos::video_from_form(0, &form, &masters)?
                 } else {
+                    let masters = db::get_master_videos().await?;
                     let mut form = Form::from(&Video::default());
                     form.add_choices("Master", masters.iter().map(|m| m.title.clone()).collect())?;
                     match Editor::new().edit(&form.as_string()) {
                         Ok(completed_form) => {
                             if let Some(cf) = completed_form {
                                 let form = Form::from_video_str(&cf)?;
-                                editing::videos::video_from_form(video.id, &form, &masters)?
+                                editing::videos::video_from_form(0, &form, &masters)?
                             } else {
                                 println!("New record will not be added to the database");
                                 return Ok(());
