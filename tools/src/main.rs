@@ -112,6 +112,9 @@ enum MasterVideosSubcommands {
         #[arg(long)]
         id: u32,
     },
+    /// List all the master videos
+    #[clap(name = "ls")]
+    Ls {},
     /// Print a master video record
     #[clap(name = "print")]
     Print {
@@ -485,6 +488,27 @@ async fn main() -> Result<()> {
                 println!("==================");
                 updated.print();
 
+                Ok(())
+            }
+            MasterVideosSubcommands::Ls {} => {
+                let masters = db::get_master_videos().await?;
+                for master in masters.iter() {
+                    let videos = db::get_videos_for_master(master.id).await?;
+                    master.print_row();
+                    for video in videos.iter() {
+                        if video.is_primary {
+                            println!(
+                                "    {}: {} ({})*",
+                                video.id, video.title, video.channel_username
+                            );
+                        } else {
+                            println!(
+                                "    {}: {} ({})",
+                                video.id, video.title, video.channel_username
+                            );
+                        }
+                    }
+                }
                 Ok(())
             }
             MasterVideosSubcommands::Print { id } => {

@@ -29,6 +29,8 @@ pub enum Error {
     NewsBroadcastCannotHaveNetworkAndAffiliate,
     #[error("A news broadcast needs either a network or an affiliate")]
     NewsBroadcastDoesNotHaveNetworkOrAffiliate,
+    #[error("Could not obtain NIST reference from path")]
+    NistRefNotObtained,
     #[error("Could not convert NIST tape from CSV: {0}")]
     NistTapeConversionError(String),
     #[error("Could not convert NIST video from CSV: {0}")]

@@ -653,6 +653,19 @@ pub struct MasterVideo {
 }
 
 impl MasterVideo {
+    pub fn get_nist_ref(&self) -> Option<String> {
+        if self.nist_files.is_empty() {
+            None
+        } else {
+            self.nist_files[0]
+                .0
+                .components()
+                .skip(3)
+                .next()
+                .map(|c| c.as_os_str().to_string_lossy().to_string())
+        }
+    }
+
     pub fn print(&self) {
         println!("ID: {}", self.id);
         println!("---");
@@ -733,6 +746,14 @@ impl MasterVideo {
                     human_readable_size(*size)
                 );
             }
+        }
+    }
+
+    pub fn print_row(&self) {
+        if let Some(nist_ref) = self.get_nist_ref() {
+            println!("{}: {} [{}]", self.id, self.title, nist_ref);
+        } else {
+            println!("{}: {}", self.id, self.title);
         }
     }
 

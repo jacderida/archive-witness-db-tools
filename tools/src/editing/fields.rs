@@ -682,13 +682,13 @@ impl BooleanField {
         }
 
         let val = input
-            .trim_start_matches(&format!("{name}: "))
+            .trim_start_matches(&format!("{name}:"))
             .trim()
             .to_string();
         if val.is_empty() {
             return Err(FormError::RequiredFieldEmpty(name.to_string()));
         }
-        if val.to_lowercase() == "yes" || val.to_lowercase() == "no" {
+        if val.to_lowercase() != "yes" && val.to_lowercase() != "no" {
             return Err(FormError::MalformedField(name.to_string()));
         }
 

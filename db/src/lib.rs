@@ -280,6 +280,38 @@ pub async fn get_master_video(id: i32, pool: Option<Pool<Postgres>>) -> Result<M
     Ok(master)
 }
 
+pub async fn get_videos_for_master(master_id: i32) -> Result<Vec<Video>> {
+    let pool = establish_connection().await?;
+    let rows = sqlx::query!(
+        r#"
+            SELECT id, title, channel_username, description, duration, link, is_primary, master_id
+            FROM videos
+            WHERE master_id = $1
+            ORDER BY id
+        "#,
+        master_id,
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let master = get_master_video(master_id, Some(pool.clone())).await?;
+    let mut videos = Vec::new();
+    for row in rows {
+        videos.push(Video {
+            channel_username: row.channel_username,
+            description: row.description,
+            duration: row.duration,
+            id: row.id,
+            is_primary: row.is_primary,
+            link: row.link,
+            master: master.clone(),
+            title: row.title,
+        });
+    }
+
+    Ok(videos)
+}
+
 pub async fn get_video(id: i32, pool: Option<Pool<Postgres>>) -> Result<Video> {
     let pool = if let Some(p) = pool {
         p
