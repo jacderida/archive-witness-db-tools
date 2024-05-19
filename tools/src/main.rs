@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
 use db::{
     cumulus::*,
-    models::{MasterVideo, NewsAffiliate, NewsNetwork, Video},
+    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, Video},
 };
 use dialoguer::Editor;
 use editing::forms::Form;
@@ -124,6 +124,8 @@ enum NewsSubcommands {
     #[clap(subcommand)]
     Affiliates(NewsAffiliatesSubcommands),
     #[clap(subcommand)]
+    Broadcasts(NewsBroadcastsSubcommands),
+    #[clap(subcommand)]
     Networks(NewsNetworksSubcommands),
 }
 
@@ -182,6 +184,18 @@ enum NewsAffiliatesSubcommands {
         /// The ID of the affiliate to print
         #[arg(long)]
         id: u32,
+    },
+}
+
+/// Manage news broadcasts
+#[derive(Subcommand, Debug)]
+enum NewsBroadcastsSubcommands {
+    /// Add a news broadcast
+    #[clap(name = "add")]
+    Add {
+        /// Path to a file containing a populated broadcast form.
+        #[arg(long)]
+        path: Option<PathBuf>,
     },
 }
 
@@ -517,6 +531,56 @@ async fn main() -> Result<()> {
                 NewsAffiliatesSubcommands::Print { id } => {
                     let affiliate = db::get_news_affiliate(id as i32, None).await?;
                     affiliate.print();
+                    Ok(())
+                }
+            },
+            NewsSubcommands::Broadcasts(broadcasts_command) => match broadcasts_command {
+                NewsBroadcastsSubcommands::Add { path } => {
+                    let networks = db::get_news_networks(None).await?;
+                    let affiliates = db::get_news_affiliates(None).await?;
+
+                    let broadcast = if let Some(path) = path {
+                        let completed_form = std::fs::read_to_string(path)?;
+                        let form = Form::from_news_broadcast_str(&completed_form)?;
+                        editing::news::news_broadcast_from_form(0, &form, &networks, &affiliates)?
+                    } else {
+                        let mut form = Form::from(&NewsBroadcast::default());
+                        form.add_choices(
+                            "Network",
+                            networks.iter().map(|n| n.name.clone()).collect(),
+                        )?;
+                        form.add_choices(
+                            "Affiliate",
+                            affiliates.iter().map(|a| a.name.clone()).collect(),
+                        )?;
+                        match Editor::new().edit(&form.as_string()) {
+                            Ok(completed_form) => {
+                                if let Some(cf) = completed_form {
+                                    let form = Form::from_news_broadcast_str(&cf)?;
+                                    editing::news::news_broadcast_from_form(
+                                        0,
+                                        &form,
+                                        &networks,
+                                        &affiliates,
+                                    )?
+                                } else {
+                                    println!("New record will not be added to the database");
+                                    return Ok(());
+                                }
+                            }
+                            Err(_) => {
+                                return Err(eyre!(
+                                    "An unknown error occurred when editing the video"
+                                ));
+                            }
+                        }
+                    };
+
+                    let updated = db::save_news_broadcast(broadcast).await?;
+                    println!("===============");
+                    println!("Saved broadcast");
+                    println!("===============");
+                    updated.print();
                     Ok(())
                 }
             },

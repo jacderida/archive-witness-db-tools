@@ -24,4 +24,5 @@ dev-database:
 
   cargo run -- news networks add --path resources/dev_test_data/abc_news_network
   cargo run -- news affiliates add --path resources/dev_test_data/wabc_affiliate
+  cargo run -- news broadcasts add --path resources/dev_test_data/wabc_broadcast
   cargo run -- releases init --torrent-path resources/torrents

@@ -677,6 +677,91 @@ pub async fn save_news_affiliate(affiliate: NewsAffiliate) -> Result<NewsAffilia
     Ok(updated_affiliate)
 }
 
+pub async fn save_news_broadcast(broadcast: NewsBroadcast) -> Result<NewsBroadcast> {
+    if broadcast.news_network.is_some() && broadcast.news_affiliate.is_some() {
+        return Err(Error::NewsBroadcastCannotHaveNetworkAndAffiliate);
+    }
+
+    let pool = establish_connection().await?;
+    let broadcast_id = if let Some(network) = &broadcast.news_network {
+        if broadcast.id == 0 {
+            sqlx::query!(
+                r#"
+                    INSERT INTO news_broadcasts (date, description, news_network_id)
+                    VALUES ($1, $2, $3)
+                    RETURNING id
+                "#,
+                broadcast.date,
+                broadcast.description,
+                network.id
+            )
+            .fetch_one(&pool)
+            .await?
+            .id
+        } else {
+            sqlx::query!(
+                r#"
+                    INSERT INTO news_broadcasts (id, date, description, news_network_id)
+                    VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (id) DO UPDATE SET
+                       date = EXCLUDED.date,
+                       description = EXCLUDED.description,
+                       news_network_id = EXCLUDED.news_network_id
+                    RETURNING id
+               "#,
+                broadcast.id,
+                broadcast.date,
+                broadcast.description,
+                network.id
+            )
+            .fetch_one(&pool)
+            .await?
+            .id
+        }
+    } else if let Some(affiliate) = &broadcast.news_affiliate {
+        if broadcast.id == 0 {
+            sqlx::query!(
+                r#"
+                    INSERT INTO news_broadcasts (date, description, news_affiliate_id)
+                    VALUES ($1, $2, $3)
+                    RETURNING id
+                "#,
+                broadcast.date,
+                broadcast.description,
+                affiliate.id
+            )
+            .fetch_one(&pool)
+            .await?
+            .id
+        } else {
+            sqlx::query!(
+                r#"
+                    INSERT INTO news_broadcasts (id, date, description, news_affiliate_id)
+                    VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (id) DO UPDATE SET
+                       date = EXCLUDED.date,
+                       description = EXCLUDED.description,
+                       news_affiliate_id = EXCLUDED.news_affiliate_id
+                    RETURNING id
+               "#,
+                broadcast.id,
+                broadcast.date,
+                broadcast.description,
+                affiliate.id
+            )
+            .fetch_one(&pool)
+            .await?
+            .id
+        }
+    } else {
+        return Err(Error::NewsBroadcastDoesNotHaveNetworkOrAffiliate);
+    };
+
+    let mut updated_broadcast = broadcast.clone();
+    updated_broadcast.id = broadcast_id;
+    Ok(updated_broadcast)
+}
+
 pub async fn save_master_video(video: MasterVideo) -> Result<MasterVideo> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;

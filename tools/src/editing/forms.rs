@@ -1,4 +1,4 @@
-use super::fields::{ChoiceField, FormField, OptionalChoiceListField};
+use super::fields::{ChoiceField, FormField, OptionalChoiceField, OptionalChoiceListField};
 use color_eyre::Result;
 use thiserror::Error;
 
@@ -67,6 +67,13 @@ impl Form {
 
     pub fn add_choices(&mut self, field_name: &str, choices: Vec<String>) -> Result<(), FormError> {
         match self.get_field_as_mut::<OptionalChoiceListField>(field_name) {
+            Ok(field) => {
+                field.add_choices(choices.clone());
+                return Ok(());
+            }
+            Err(_) => {}
+        }
+        match self.get_field_as_mut::<OptionalChoiceField>(field_name) {
             Ok(field) => {
                 field.add_choices(choices.clone());
                 return Ok(());

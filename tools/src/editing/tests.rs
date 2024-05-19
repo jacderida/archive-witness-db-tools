@@ -11,8 +11,8 @@ fn form_as_string_from_default_master_video_should_have_expected_fields() {
     let news_broadcasts = vec![
         NewsBroadcast {
             id: 1,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "New York local coverage of 9/11".to_string(),
             news_network: Some(NewsNetwork {
                 id: 1,
                 name: String::from("WABC-TV"),
@@ -22,8 +22,8 @@ fn form_as_string_from_default_master_video_should_have_expected_fields() {
         },
         NewsBroadcast {
             id: 2,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "ABC national coverage of 9/11".to_string(),
             news_network: Some(NewsNetwork {
                 id: 2,
                 name: String::from("ABC News"),
@@ -65,8 +65,8 @@ fn master_video_from_form_should_parse_a_master_video() {
     let news_broadcasts = vec![
         NewsBroadcast {
             id: 1,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "New York local coverage of 9/11".to_string(),
             news_network: None,
             news_affiliate: Some(NewsAffiliate {
                 id: 1,
@@ -78,8 +78,8 @@ fn master_video_from_form_should_parse_a_master_video() {
         },
         NewsBroadcast {
             id: 2,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "ABC national coverage of 9/11".to_string(),
             news_network: Some(news_network),
             news_affiliate: None,
         },
@@ -235,8 +235,8 @@ fn master_video_from_form_should_parse_a_form_where_an_existing_person_has_a_typ
     let news_broadcasts = vec![
         NewsBroadcast {
             id: 1,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "New York local coverage of 9/11".to_string(),
             news_network: None,
             news_affiliate: Some(NewsAffiliate {
                 id: 1,
@@ -248,8 +248,8 @@ fn master_video_from_form_should_parse_a_form_where_an_existing_person_has_a_typ
         },
         NewsBroadcast {
             id: 2,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "ABC national coverage of 9/11".to_string(),
             news_network: Some(news_network),
             news_affiliate: None,
         },
@@ -317,8 +317,8 @@ fn master_video_from_form_should_parse_master_video_where_form_has_empty_fields(
     let news_broadcasts = vec![
         NewsBroadcast {
             id: 1,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "New York local coverage of 9/11".to_string(),
             news_network: None,
             news_affiliate: Some(NewsAffiliate {
                 id: 1,
@@ -330,8 +330,8 @@ fn master_video_from_form_should_parse_master_video_where_form_has_empty_fields(
         },
         NewsBroadcast {
             id: 2,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "ABC national coverage of 9/11".to_string(),
             news_network: Some(news_network),
             news_affiliate: None,
         },
@@ -394,8 +394,8 @@ fn form_as_string_from_default_video_should_have_expected_fields() {
     let news_broadcasts = vec![
         NewsBroadcast {
             id: 1,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "New York local coverage of 9/11".to_string(),
             news_network: None,
             news_affiliate: Some(NewsAffiliate {
                 id: 1,
@@ -407,8 +407,8 @@ fn form_as_string_from_default_video_should_have_expected_fields() {
         },
         NewsBroadcast {
             id: 2,
-            date: Some(NaiveDate::from_ymd_opt(2001, 9, 11).unwrap()),
-            description: None,
+            date: NaiveDate::from_ymd_opt(2001, 9, 11).unwrap(),
+            description: "ABC national coverage of 9/11".to_string(),
             news_network: Some(news_network),
             news_affiliate: None,
         },

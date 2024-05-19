@@ -14,8 +14,8 @@ CREATE TABLE news_affiliates (
 
 CREATE TABLE news_broadcasts (
     id SERIAL PRIMARY KEY,
-    date DATE,
-    description TEXT,
+    date DATE NOT NULL,
+    description TEXT NOT NULL,
     news_network_id INTEGER REFERENCES news_networks(id),
     news_affiliate_id INTEGER REFERENCES news_affiliates(id)
 );

@@ -504,13 +504,13 @@ impl NewsAffiliate {
     pub fn print(&self) {
         println!("ID: {}", self.id);
         println!("---");
+        println!("Network:{}", self.network.name);
+        println!("---");
         println!("Name: {}", self.name);
         println!("---");
         println!("Description:\n{}", self.description);
         println!("---");
         println!("Region:\n{}", self.region);
-        println!("---");
-        println!("Network:\n{}", self.network.name);
     }
 
     pub fn print_row(&self) {
@@ -521,13 +521,31 @@ impl NewsAffiliate {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct NewsBroadcast {
     pub id: i32,
-    pub date: Option<NaiveDate>,
-    pub description: Option<String>,
+    pub date: NaiveDate,
+    pub description: String,
     pub news_network: Option<NewsNetwork>,
     pub news_affiliate: Option<NewsAffiliate>,
+}
+
+impl NewsBroadcast {
+    pub fn print(&self) {
+        println!("ID: {}", self.id);
+        println!("---");
+        if let Some(network) = &self.news_network {
+            println!("Network: {}", network.name);
+            println!("---");
+        }
+        if let Some(affiliate) = &self.news_affiliate {
+            println!("Affiliate: {}", affiliate.name);
+            println!("---");
+        }
+        println!("Date:\n{}", self.date.to_string());
+        println!("---");
+        println!("Description:\n{}", self.description);
+    }
 }
 
 impl std::fmt::Display for NewsBroadcast {
@@ -538,9 +556,7 @@ impl std::fmt::Display for NewsBroadcast {
         } else if let Some(affiliate) = &self.news_affiliate {
             title.push_str(&affiliate.name);
         }
-        if let Some(date) = self.date {
-            title.push_str(&format!(" ({})", date.format("%Y-%m-%d")));
-        }
+        title.push_str(&format!(" ({})", self.date.format("%Y-%m-%d")));
         write!(f, "{}", title)
     }
 }

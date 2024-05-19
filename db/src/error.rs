@@ -25,6 +25,10 @@ pub enum Error {
     MagickError(#[from] magick_rust::MagickError),
     #[error("Could not find master video with ID '{0}'")]
     MasterVideoNotFound(u32),
+    #[error("A news broadcast cannot have both a network and an affiliate")]
+    NewsBroadcastCannotHaveNetworkAndAffiliate,
+    #[error("A news broadcast needs either a network or an affiliate")]
+    NewsBroadcastDoesNotHaveNetworkOrAffiliate,
     #[error("Could not convert NIST tape from CSV: {0}")]
     NistTapeConversionError(String),
     #[error("Could not convert NIST video from CSV: {0}")]

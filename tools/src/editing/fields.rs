@@ -567,6 +567,72 @@ impl ChoiceField {
     }
 }
 
+pub struct OptionalChoiceField {
+    pub name: String,
+    pub value: String,
+    pub choices: Vec<String>,
+}
+
+impl FormField for OptionalChoiceField {
+    fn value(&self) -> String {
+        self.value.clone()
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn as_string(&self) -> String {
+        let mut s = String::new();
+        s.push_str(&format!("{}:", self.name()));
+        let val = self.value();
+        if val.is_empty() {
+            s.push('\n');
+            s.push_str("## CHOOSE ONE OR NONE ##\n");
+            for choice in self.choices.iter() {
+                s.push_str(choice);
+                s.push('\n');
+            }
+        } else {
+            s.push_str(&format!(" {val}"));
+        }
+        s.trim().to_string()
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+impl OptionalChoiceField {
+    pub fn new(name: &str, value: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            value: value.to_string(),
+            choices: Vec::new(),
+        }
+    }
+
+    pub fn add_choices(&mut self, choices: Vec<String>) {
+        self.choices.extend(choices);
+    }
+
+    pub fn from_input_str(name: &str, input: &str) -> Result<Self, FormError> {
+        if !input.contains(name) {
+            return Err(FormError::MalformedField(name.to_string()));
+        }
+        let val = input
+            .trim_start_matches(&format!("{name}:"))
+            .trim()
+            .to_string();
+        Ok(OptionalChoiceField::new(name, &val))
+    }
+}
+
 pub struct BooleanField {
     pub name: String,
     pub value: bool,
