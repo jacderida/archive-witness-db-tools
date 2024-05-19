@@ -17,7 +17,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 pub async fn establish_connection() -> Result<Pool<Postgres>> {
     dotenv().ok();
-    let database_url = std::env::var("DATABASE_URL")?;
+    let database_url = std::env::var("AW_DB_URL")?;
     let pool = PgPoolOptions::new().connect(&database_url).await?;
     Ok(pool)
 }
