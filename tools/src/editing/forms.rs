@@ -20,15 +20,12 @@ pub enum FormError {
     RequiredFieldEmpty(String),
 }
 
+#[derive(Default)]
 pub struct Form {
     pub fields: Vec<Box<dyn FormField>>,
 }
 
 impl Form {
-    pub fn new() -> Self {
-        Self { fields: Vec::new() }
-    }
-
     pub fn add_field(&mut self, field: Box<dyn FormField>) {
         self.fields.push(field);
     }
@@ -66,26 +63,17 @@ impl Form {
     }
 
     pub fn add_choices(&mut self, field_name: &str, choices: Vec<String>) -> Result<(), FormError> {
-        match self.get_field_as_mut::<OptionalChoiceListField>(field_name) {
-            Ok(field) => {
-                field.add_choices(choices.clone());
-                return Ok(());
-            }
-            Err(_) => {}
+        if let Ok(field) = self.get_field_as_mut::<OptionalChoiceListField>(field_name) {
+            field.add_choices(choices.clone());
+            return Ok(());
         }
-        match self.get_field_as_mut::<OptionalChoiceField>(field_name) {
-            Ok(field) => {
-                field.add_choices(choices.clone());
-                return Ok(());
-            }
-            Err(_) => {}
+        if let Ok(field) = self.get_field_as_mut::<OptionalChoiceField>(field_name) {
+            field.add_choices(choices.clone());
+            return Ok(());
         }
-        match self.get_field_as_mut::<ChoiceField>(field_name) {
-            Ok(field) => {
-                field.add_choices(choices.clone());
-                return Ok(());
-            }
-            Err(_) => {}
+        if let Ok(field) = self.get_field_as_mut::<ChoiceField>(field_name) {
+            field.add_choices(choices.clone());
+            return Ok(());
         }
 
         Err(FormError::ChoiceFieldNotFound(field_name.to_string()))

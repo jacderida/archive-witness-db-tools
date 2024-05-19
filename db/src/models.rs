@@ -542,7 +542,7 @@ impl NewsBroadcast {
             println!("Affiliate: {}", affiliate.name);
             println!("---");
         }
-        println!("Date:\n{}", self.date.to_string());
+        println!("Date:\n{}", self.date);
         println!("---");
         println!("Description:\n{}", self.description);
     }
@@ -555,12 +555,7 @@ impl NewsBroadcast {
         } else {
             panic!("Broadcast does not have an affiliate or a network");
         };
-        println!(
-            "{}, {}, {}",
-            self.id,
-            self.date.to_string(),
-            network_or_affiliate
-        );
+        println!("{}, {}, {}", self.id, self.date, network_or_affiliate);
     }
 }
 
@@ -660,8 +655,7 @@ impl MasterVideo {
             self.nist_files[0]
                 .0
                 .components()
-                .skip(3)
-                .next()
+                .nth(3)
                 .map(|c| c.as_os_str().to_string_lossy().to_string())
         }
     }

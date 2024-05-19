@@ -14,20 +14,18 @@ impl Form {
             return Err(FormError::MalformedForm);
         }
 
-        let mut form = Form::new();
+        let mut form = Form::default();
 
         form.add_field(Box::new(ChoiceField::from_input_str("Master", parts[0])?));
-        form.add_field(Box::new(TextField::from_input_str("Title", &parts[1])?));
-        form.add_field(Box::new(TextField::from_input_str("Channel", &parts[2])?));
+        form.add_field(Box::new(TextField::from_input_str("Title", parts[1])?));
+        form.add_field(Box::new(TextField::from_input_str("Channel", parts[2])?));
         form.add_field(Box::new(OptionalMultilineListField::from_input_str(
             "Description",
             parts[3],
         )?));
-        form.add_field(Box::new(TextField::from_input_str("Link", &parts[4])?));
-        form.add_field(Box::new(TextField::from_input_str("Duration", &parts[5])?));
-        form.add_field(Box::new(BooleanField::from_input_str(
-            "Primary", &parts[6],
-        )?));
+        form.add_field(Box::new(TextField::from_input_str("Link", parts[4])?));
+        form.add_field(Box::new(TextField::from_input_str("Duration", parts[5])?));
+        form.add_field(Box::new(BooleanField::from_input_str("Primary", parts[6])?));
 
         Ok(form)
     }
@@ -35,14 +33,14 @@ impl Form {
 
 impl From<&Video> for Form {
     fn from(video: &Video) -> Self {
-        let mut form = Form::new();
+        let mut form = Form::default();
 
         form.add_field(Box::new(ChoiceField::new("Master", &video.master.title)));
         form.add_field(Box::new(TextField::new("Title", &video.title)));
         form.add_field(Box::new(TextField::new("Channel", &video.channel_username)));
         form.add_field(Box::new(OptionalMultilineTextField::new(
             "Description",
-            &video.description.as_ref().unwrap_or(&"".to_string()),
+            video.description.as_ref().unwrap_or(&"".to_string()),
         )));
         form.add_field(Box::new(TextField::new("Link", &video.title)));
         form.add_field(Box::new(TextField::new(

@@ -18,18 +18,18 @@ impl Form {
             return Err(FormError::MalformedForm);
         }
 
-        let mut form = Form::new();
+        let mut form = Form::default();
 
         form.add_field(Box::new(OptionalChoiceListField::from_input_str(
             "News Broadcasts",
             parts[0],
         )?));
-        form.add_field(Box::new(TextField::from_input_str("Title", &parts[1])?));
+        form.add_field(Box::new(TextField::from_input_str("Title", parts[1])?));
         form.add_field(Box::new(ListField::from_input_str("Categories", parts[2])?));
-        form.add_field(Box::new(TextField::from_input_str("Date", &parts[3])?));
+        form.add_field(Box::new(TextField::from_input_str("Date", parts[3])?));
         form.add_field(Box::new(MultilineTextField::from_input_str(
             "Description",
-            &parts[4],
+            parts[4],
         )?));
         form.add_field(Box::new(OptionalListField::from_input_str(
             "Links", parts[5],
@@ -40,7 +40,7 @@ impl Form {
         )?));
         form.add_field(Box::new(OptionalMultilineTextField::from_input_str(
             "NIST Notes",
-            &parts[7],
+            parts[7],
         )?));
         form.add_field(Box::new(OptionalListField::from_input_str(
             "Eyewitnesses",
@@ -82,7 +82,7 @@ impl Form {
 
 impl From<&MasterVideo> for Form {
     fn from(model: &MasterVideo) -> Self {
-        let mut form = Form::new();
+        let mut form = Form::default();
 
         form.add_field(Box::new(OptionalChoiceListField::new(
             "News Broadcasts",
@@ -90,12 +90,16 @@ impl From<&MasterVideo> for Form {
                 .news_broadcasts
                 .iter()
                 .map(|b| b.to_string())
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(TextField::new("Title", &model.title)));
         form.add_field(Box::new(ListField::new(
             "Categories",
-            &model.categories.iter().map(|c| c.to_string()).collect(),
+            &model
+                .categories
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(TextField::new(
             "Date",
@@ -107,15 +111,23 @@ impl From<&MasterVideo> for Form {
         )));
         form.add_field(Box::new(OptionalListField::new(
             "Links",
-            &model.categories.iter().map(|c| c.to_string()).collect(),
+            &model
+                .categories
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(OptionalMultilineListField::new(
             "Timestamps",
-            &model.timestamps.iter().map(|c| c.to_string()).collect(),
+            &model
+                .timestamps
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(OptionalMultilineTextField::new(
             "NIST Notes",
-            &model.nist_notes.as_ref().unwrap_or(&"".to_string()),
+            model.nist_notes.as_ref().unwrap_or(&"".to_string()),
         )));
         form.add_field(Box::new(ListField::new(
             "Eyewitnesses",
@@ -129,7 +141,7 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(ListField::new(
             "Fire",
@@ -143,7 +155,7 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(ListField::new(
             "Police",
@@ -157,7 +169,7 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(ListField::new(
             "Port Authority",
@@ -171,7 +183,7 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(ListField::new(
             "Reporters",
@@ -185,7 +197,7 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(ListField::new(
             "Survivors",
@@ -199,7 +211,7 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(ListField::new(
             "Victims",
@@ -213,7 +225,7 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(ListField::new(
             "Videographers",
@@ -227,11 +239,15 @@ impl From<&MasterVideo> for Form {
                         None
                     }
                 })
-                .collect(),
+                .collect::<Vec<String>>(),
         )));
         form.add_field(Box::new(OptionalMultilineListField::new(
             "NIST Files",
-            &model.timestamps.iter().map(|c| c.to_string()).collect(),
+            &model
+                .timestamps
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<String>>(),
         )));
 
         form

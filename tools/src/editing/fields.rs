@@ -210,10 +210,10 @@ impl FormField for OptionalChoiceListField {
 }
 
 impl OptionalChoiceListField {
-    pub fn new(name: &str, values: &Vec<String>) -> Self {
+    pub fn new(name: &str, values: &[String]) -> Self {
         Self {
             name: name.to_string(),
-            values: values.clone(),
+            values: values.to_owned(),
             choices: Vec::new(),
         }
     }
@@ -250,10 +250,10 @@ pub struct ListField {
 }
 
 impl ListField {
-    pub fn new(name: &str, values: &Vec<String>) -> Self {
+    pub fn new(name: &str, values: &[String]) -> Self {
         Self {
             name: name.to_string(),
-            values: values.clone(),
+            values: values.to_owned(),
         }
     }
 
@@ -322,10 +322,10 @@ pub struct OptionalListField {
 }
 
 impl OptionalListField {
-    pub fn new(name: &str, values: &Vec<String>) -> Self {
+    pub fn new(name: &str, values: &[String]) -> Self {
         Self {
             name: name.to_string(),
-            values: values.clone(),
+            values: values.to_owned(),
         }
     }
 
@@ -416,10 +416,10 @@ impl FormField for MultilineListField {
 }
 
 impl MultilineListField {
-    fn new(name: &str, values: &Vec<String>) -> Self {
+    fn new(name: &str, values: &[String]) -> Self {
         Self {
             name: name.to_string(),
-            values: values.clone(),
+            values: values.to_owned(),
         }
     }
 
@@ -475,10 +475,10 @@ impl FormField for OptionalMultilineListField {
 }
 
 impl OptionalMultilineListField {
-    pub fn new(name: &str, values: &Vec<String>) -> Self {
+    pub fn new(name: &str, values: &[String]) -> Self {
         Self {
             name: name.to_string(),
-            values: values.clone(),
+            values: values.to_owned(),
         }
     }
 

@@ -11,11 +11,11 @@ impl Form {
             return Err(FormError::MalformedForm);
         }
 
-        let mut form = Form::new();
-        form.add_field(Box::new(TextField::from_input_str("Name", &parts[0])?));
+        let mut form = Form::default();
+        form.add_field(Box::new(TextField::from_input_str("Name", parts[0])?));
         form.add_field(Box::new(MultilineTextField::from_input_str(
             "Description",
-            &parts[1],
+            parts[1],
         )?));
 
         Ok(form)
@@ -27,14 +27,14 @@ impl Form {
             return Err(FormError::MalformedForm);
         }
 
-        let mut form = Form::new();
+        let mut form = Form::default();
         form.add_field(Box::new(ChoiceField::from_input_str("Network", parts[0])?));
-        form.add_field(Box::new(TextField::from_input_str("Name", &parts[1])?));
+        form.add_field(Box::new(TextField::from_input_str("Name", parts[1])?));
         form.add_field(Box::new(MultilineTextField::from_input_str(
             "Description",
-            &parts[2],
+            parts[2],
         )?));
-        form.add_field(Box::new(TextField::from_input_str("Region", &parts[3])?));
+        form.add_field(Box::new(TextField::from_input_str("Region", parts[3])?));
 
         Ok(form)
     }
@@ -45,18 +45,18 @@ impl Form {
             return Err(FormError::MalformedForm);
         }
 
-        let mut form = Form::new();
+        let mut form = Form::default();
         form.add_field(Box::new(OptionalChoiceField::from_input_str(
-            "Network", &parts[0],
+            "Network", parts[0],
         )?));
         form.add_field(Box::new(OptionalChoiceField::from_input_str(
             "Affiliate",
-            &parts[1],
+            parts[1],
         )?));
-        form.add_field(Box::new(TextField::from_input_str("Date", &parts[2])?));
+        form.add_field(Box::new(TextField::from_input_str("Date", parts[2])?));
         form.add_field(Box::new(MultilineTextField::from_input_str(
             "Description",
-            &parts[3],
+            parts[3],
         )?));
         Ok(form)
     }
@@ -64,7 +64,7 @@ impl Form {
 
 impl From<&NewsNetwork> for Form {
     fn from(model: &NewsNetwork) -> Self {
-        let mut form = Form::new();
+        let mut form = Form::default();
         form.add_field(Box::new(TextField::new("Name", &model.name)));
         form.add_field(Box::new(MultilineTextField::new(
             "Description",
@@ -87,7 +87,7 @@ pub fn news_network_from_form(id: i32, form: &Form) -> Result<NewsNetwork> {
 
 impl From<&NewsAffiliate> for Form {
     fn from(model: &NewsAffiliate) -> Self {
-        let mut form = Form::new();
+        let mut form = Form::default();
         form.add_field(Box::new(TextField::new("Name", &model.name)));
         form.add_field(Box::new(MultilineTextField::new(
             "Description",
@@ -125,7 +125,7 @@ pub fn news_affiliate_from_form(
 
 impl From<&NewsBroadcast> for Form {
     fn from(model: &NewsBroadcast) -> Self {
-        let mut form = Form::new();
+        let mut form = Form::default();
         form.add_field(Box::new(OptionalChoiceField::new(
             "Network",
             &model
