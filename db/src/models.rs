@@ -859,6 +859,11 @@ impl Video {
         println!("---");
         println!("Primary: {}", self.is_primary);
     }
+
+    pub fn print_row(&self) {
+        println!("{}: {} [{}]", self.id, self.title, self.channel_username);
+        println!("\t{}", self.link);
+    }
 }
 
 #[cfg(test)]

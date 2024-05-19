@@ -341,6 +341,9 @@ enum VideosSubcommands {
         #[arg(long)]
         out_path: PathBuf,
     },
+    /// List all videos
+    #[clap(name = "ls")]
+    Ls {},
     /// Print the details of a video.
     #[clap(name = "print")]
     Print {
@@ -935,6 +938,13 @@ async fn main() -> Result<()> {
                     out_path.to_string_lossy()
                 );
                 export_master_videos(&out_path).await?;
+                Ok(())
+            }
+            VideosSubcommands::Ls {} => {
+                let videos = db::get_videos().await?;
+                for video in videos.iter() {
+                    video.print_row();
+                }
                 Ok(())
             }
             VideosSubcommands::Print { id } => {
