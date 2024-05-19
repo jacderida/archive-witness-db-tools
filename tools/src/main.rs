@@ -152,7 +152,7 @@ enum NewsNetworksSubcommands {
     /// Print a news network
     #[clap(name = "print")]
     Print {
-        /// The ID of the network to edit
+        /// The ID of the network
         #[arg(long)]
         id: u32,
     },
@@ -181,7 +181,7 @@ enum NewsAffiliatesSubcommands {
     /// Print a news affiliate
     #[clap(name = "print")]
     Print {
-        /// The ID of the affiliate to print
+        /// The ID of the affiliate
         #[arg(long)]
         id: u32,
     },
@@ -201,6 +201,13 @@ enum NewsBroadcastsSubcommands {
     #[clap(name = "edit")]
     Edit {
         /// The ID of the broadcast to edit
+        #[arg(long)]
+        id: u32,
+    },
+    /// Print a news broadcast
+    #[clap(name = "print")]
+    Print {
+        /// The ID of the broadcast
         #[arg(long)]
         id: u32,
     },
@@ -621,6 +628,11 @@ async fn main() -> Result<()> {
                     println!("Saved broadcast");
                     println!("===============");
                     updated.print();
+                    Ok(())
+                }
+                NewsBroadcastsSubcommands::Print { id } => {
+                    let broadcast = db::get_news_broadcast(id as i32, None).await?;
+                    broadcast.print();
                     Ok(())
                 }
             },
