@@ -285,7 +285,8 @@ pub async fn download_file(url: &Url, target_path: &PathBuf, file_pb: &ProgressB
     }
     if !response.status().is_success() {
         return Err(eyre!(
-            "Failed to download file: {} response",
+            "Failed to download {}: {} response",
+            url,
             response.status()
         ));
     }

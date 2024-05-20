@@ -230,7 +230,7 @@ lazy_static! {
         ),
         (
             "2011-01-19",
-            "https://jacderida-sept11.s3.eu-west-1.amazonaws.com/NARA_9-11_Commission_Records_Released_Jan_14_2009.torrent",
+            "https://jacderida-sept11.s3.eu-west-1.amazonaws.com/911datasets-torrents/NARA_9-11_Commission_Records_Released_Jan_14_2009.torrent",
             "NARA 9-11 Commission Records - Released Jan 14 2009",
             "https://archive.org/download/911datasets/NARA_9-11_Commission_Records_Released_Jan_14_2009.zip",
         ),
