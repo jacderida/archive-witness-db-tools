@@ -267,6 +267,12 @@ pub struct NistTape {
     pub timecode: bool,
 }
 
+impl NistTape {
+    pub fn print_row(&self) {
+        println!("{}: {}", self.tape_id, self.tape_name);
+    }
+}
+
 impl TryFrom<Vec<String>> for NistTape {
     type Error = ConversionError;
 

@@ -389,7 +389,22 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
     let pool = establish_connection().await?;
     let videos = sqlx::query_as!(
         NistTape,
-        "SELECT tape_id, video_id, tape_name, tape_source, copy, derived_from, format, duration_min, batch, clips, timecode FROM nist_tapes"
+        r#"
+            SELECT
+                tape_id,
+                video_id,
+                tape_name,
+                tape_source,
+                copy,
+                derived_from,
+                format,
+                duration_min,
+                batch,
+                clips,
+                timecode
+            FROM nist_tapes
+            ORDER BY tape_id
+        "#
     )
     .fetch_all(&pool)
     .await?;

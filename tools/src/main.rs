@@ -9,7 +9,7 @@ use color_eyre::{eyre::eyre, Result};
 use db::{
     cumulus::*,
     helpers::parse_duration,
-    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, Video},
+    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, NistTape, Video},
 };
 use dialoguer::Editor;
 use editing::forms::Form;
@@ -113,36 +113,6 @@ enum NewsSubcommands {
     Networks(NewsNetworksSubcommands),
 }
 
-/// Tools for working with NIST's databases.
-#[derive(Subcommand, Debug)]
-enum NistSubcommands {
-    #[clap(subcommand)]
-    Import(NistImportSubcommands),
-}
-
-/// Import CSV exports of NIST's Access database tables into the Postgres database.
-#[derive(Subcommand, Debug)]
-enum NistImportSubcommands {
-    /// Import a CSV export of the NIST Tapes table from their Access database
-    ///
-    /// The videos table must be imported before the tapes table.
-    #[clap(name = "tapes")]
-    Tapes {
-        /// Path to the CSV export
-        #[arg(long)]
-        path: PathBuf,
-    },
-    /// Import a CSV export of the NIST Videos table from their Access database.
-    ///
-    /// The videos table must be imported before the tapes table.
-    #[clap(name = "videos")]
-    Videos {
-        /// Path to the CSV export
-        #[arg(long)]
-        path: PathBuf,
-    },
-}
-
 /// Manage news networks
 #[derive(Subcommand, Debug)]
 enum NewsNetworksSubcommands {
@@ -227,6 +197,52 @@ enum NewsBroadcastsSubcommands {
         /// The ID of the broadcast
         #[arg(long)]
         id: u32,
+    },
+}
+
+/// Tools for working with NIST's databases.
+#[derive(Subcommand, Debug)]
+enum NistSubcommands {
+    #[clap(subcommand)]
+    Import(NistImportSubcommands),
+    #[clap(subcommand)]
+    Tapes(NistTapesSubcommands),
+}
+
+/// Import CSV exports of NIST's Access database tables into the Postgres database.
+#[derive(Subcommand, Debug)]
+enum NistImportSubcommands {
+    /// Import a CSV export of the NIST Tapes table from their Access database
+    ///
+    /// The videos table must be imported before the tapes table.
+    #[clap(name = "tapes")]
+    Tapes {
+        /// Path to the CSV export
+        #[arg(long)]
+        path: PathBuf,
+    },
+    /// Import a CSV export of the NIST Videos table from their Access database.
+    ///
+    /// The videos table must be imported before the tapes table.
+    #[clap(name = "videos")]
+    Videos {
+        /// Path to the CSV export
+        #[arg(long)]
+        path: PathBuf,
+    },
+}
+
+/// Import CSV exports of NIST's Access database tables into the Postgres database.
+#[derive(Subcommand, Debug)]
+enum NistTapesSubcommands {
+    /// List the tapes.
+    ///
+    /// By default, the duplicate tapes will be filtered.
+    #[clap(name = "ls")]
+    Ls {
+        /// Show duplicate tapes.
+        #[arg(long)]
+        show_duplicates: bool,
     },
 }
 
@@ -772,6 +788,26 @@ async fn main() -> Result<()> {
                     print!("Importing the Videos table from the NIST database...");
                     db::import_nist_videos_table_from_csv(path).await?;
                     print!("done");
+                    Ok(())
+                }
+            },
+            NistSubcommands::Tapes(tapes_command) => match tapes_command {
+                NistTapesSubcommands::Ls { show_duplicates } => {
+                    let tapes = if show_duplicates {
+                        db::get_nist_tapes()
+                            .await?
+                            .into_iter()
+                            .collect::<Vec<NistTape>>()
+                    } else {
+                        db::get_nist_tapes()
+                            .await?
+                            .into_iter()
+                            .filter(|t| t.derived_from == 0)
+                            .collect::<Vec<NistTape>>()
+                    };
+                    for tape in tapes.iter() {
+                        tape.print_row();
+                    }
                     Ok(())
                 }
             },
