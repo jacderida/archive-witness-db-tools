@@ -622,7 +622,7 @@ pub async fn get_people() -> Result<Vec<Person>> {
 /// ***********************
 /// Insert-based queries
 /// ***********************
-pub async fn import_nist_video_table_from_csv(csv_path: PathBuf) -> Result<()> {
+pub async fn import_nist_videos_table_from_csv(csv_path: PathBuf) -> Result<()> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
 

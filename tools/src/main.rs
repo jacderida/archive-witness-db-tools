@@ -27,38 +27,17 @@ struct Opt {
 #[derive(Subcommand, Debug)]
 enum Commands {
     #[clap(subcommand)]
-    AccessDb(AccessDbSubcommands),
-    #[clap(subcommand)]
     Cumulus(CumulusSubcommands),
     #[clap(subcommand, name = "masters")]
     MasterVideos(MasterVideosSubcommands),
     #[clap(subcommand)]
     News(NewsSubcommands),
     #[clap(subcommand)]
+    Nist(NistSubcommands),
+    #[clap(subcommand)]
     Releases(ReleasesSubcommands),
     #[clap(subcommand)]
     Videos(VideosSubcommands),
-}
-
-/// Tools for importing NIST's Access database
-///
-/// External tools must be used to export the database tables to CSV.
-#[derive(Subcommand, Debug)]
-enum AccessDbSubcommands {
-    /// Import a CSV export of the NIST Tapes table from their Access database
-    #[clap(name = "import-tapes")]
-    ImportTapes {
-        /// Path to the CSV export
-        #[arg(long)]
-        path: PathBuf,
-    },
-    /// Import a CSV export of the NIST Videos table from their Access database
-    #[clap(name = "import-videos")]
-    ImportVideos {
-        /// Path to the CSV export
-        #[arg(long)]
-        path: PathBuf,
-    },
 }
 
 /// Tools for working with the Cumulus exports
@@ -132,6 +111,36 @@ enum NewsSubcommands {
     Broadcasts(NewsBroadcastsSubcommands),
     #[clap(subcommand)]
     Networks(NewsNetworksSubcommands),
+}
+
+/// Tools for working with NIST's databases.
+#[derive(Subcommand, Debug)]
+enum NistSubcommands {
+    #[clap(subcommand)]
+    Import(NistImportSubcommands),
+}
+
+/// Import CSV exports of NIST's Access database tables into the Postgres database.
+#[derive(Subcommand, Debug)]
+enum NistImportSubcommands {
+    /// Import a CSV export of the NIST Tapes table from their Access database
+    ///
+    /// The videos table must be imported before the tapes table.
+    #[clap(name = "tapes")]
+    Tapes {
+        /// Path to the CSV export
+        #[arg(long)]
+        path: PathBuf,
+    },
+    /// Import a CSV export of the NIST Videos table from their Access database.
+    ///
+    /// The videos table must be imported before the tapes table.
+    #[clap(name = "videos")]
+    Videos {
+        /// Path to the CSV export
+        #[arg(long)]
+        path: PathBuf,
+    },
 }
 
 /// Manage news networks
@@ -359,20 +368,6 @@ async fn main() -> Result<()> {
 
     let opt = Opt::parse();
     match opt.command {
-        Commands::AccessDb(access_command) => match access_command {
-            AccessDbSubcommands::ImportTapes { path } => {
-                print!("Importing the Tapes table from the NIST database...");
-                db::import_nist_tapes_table_from_csv(path).await?;
-                print!("done");
-                Ok(())
-            }
-            AccessDbSubcommands::ImportVideos { path } => {
-                print!("Importing the Videos table from the NIST database...");
-                db::import_nist_video_table_from_csv(path).await?;
-                print!("done");
-                Ok(())
-            }
-        },
         Commands::Cumulus(cumulus_command) => match cumulus_command {
             CumulusSubcommands::Get {
                 cumulus_export_path,
@@ -761,6 +756,22 @@ async fn main() -> Result<()> {
                 NewsNetworksSubcommands::Print { id } => {
                     let network = db::get_news_network(id as i32, None).await?;
                     network.print();
+                    Ok(())
+                }
+            },
+        },
+        Commands::Nist(nist_command) => match nist_command {
+            NistSubcommands::Import(import_command) => match import_command {
+                NistImportSubcommands::Tapes { path } => {
+                    print!("Importing the Tapes table from the NIST database...");
+                    db::import_nist_tapes_table_from_csv(path).await?;
+                    print!("done");
+                    Ok(())
+                }
+                NistImportSubcommands::Videos { path } => {
+                    print!("Importing the Videos table from the NIST database...");
+                    db::import_nist_videos_table_from_csv(path).await?;
+                    print!("done");
                     Ok(())
                 }
             },

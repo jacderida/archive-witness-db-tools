@@ -22,6 +22,8 @@ dev-database:
   #!/usr/bin/env bash
   set -e
 
+  cargo run -- nist import videos --path resources/dev_test_data/videos.csv
+  cargo run -- nist import tapes --path resources/dev_test_data/tapes.csv
   cargo run -- news networks add --path resources/dev_test_data/abc_news_network
   cargo run -- news affiliates add --path resources/dev_test_data/wabc_affiliate
   cargo run -- news broadcasts add --path resources/dev_test_data/wabc_broadcast
