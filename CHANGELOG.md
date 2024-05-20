@@ -2,11 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.0] - 2024-05-20
+## [tools-v1.0.1] - 2024-05-20
 
-db: 1.0.0
-db-youtube: 1.0.0
-tools: 1.0.0
+### 🐛 Bug Fixes
+
+- Update incorrect torrent url
+
+## [tools-v1.0.0] - 2024-05-20
 
 ### 🚀 Features
 
