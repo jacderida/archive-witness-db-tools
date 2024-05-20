@@ -5,6 +5,30 @@ terrorist attacks of September 11, 2001.
 
 This repository provides some crates for defining the database and populating it with content.
 
+## Release
+
+There is a simple manual process for doing releases. I'm documenting it here in case I forget the
+steps the next time I come to do it.
+
+None of the crates get published, or even have a Github release; my deployment process builds the
+binary from the latest `tools-vX.Y.Z` tag.
+
+To get a new version, do the following:
+
+* Create a branch, or use an existing feature branch if you have one.
+* Run `git cliff --bump > CHANGELOG.md` to generate a new changelog.
+* Check if the changelog has the version numbers correctly predicted. If not, run `git cliff --tag X`,
+  where 'X' should be replaced with the anticipated version number of the `tools` crate.
+* Run `cargo release version --execute --package <crate> <bump-type>` for each of the three crates.
+  See `cargo release version --help` for the possible values for `<bump-type>`. You need to specify
+  the value manually: `cargo release` won't check your commits for breaking changes.
+* Create a `chore(release):` commit.
+* Checkout `main` and rebase the branch in.
+* Run `cargo release tag --workspace --execute` to create tags for the bumped versions.
+* Run `cargo release push --execute` to push the tags and commits.
+
+Now run the Jenkins deployment job.
+
 ## Deployment
 
 I'm adding a section here to leave myself some documentation on how I setup Postgres and built the
