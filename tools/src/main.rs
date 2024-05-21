@@ -247,8 +247,17 @@ enum NistTapesSubcommands {
     /// By default, the duplicate tapes will be filtered.
     #[clap(name = "ls")]
     Ls {
-        /// Show duplicate tapes.
-        #[arg(long)]
+        /// Set to filter tapes with files associated.
+        ///
+        /// Provides the ability to see only those tapes we still need to associate with files.
+        ///
+        /// This flag is mutually exclusive with --show-duplicates.
+        #[arg(long, conflicts_with = "show_duplicates")]
+        filter_files: bool,
+        /// Set to show duplicate tapes.
+        ///
+        /// This flag is mutually exclusive with --filter-files.
+        #[arg(long, conflicts_with = "filter_files")]
         show_duplicates: bool,
     },
 }
@@ -828,11 +837,20 @@ async fn main() -> Result<()> {
                     updated.print();
                     Ok(())
                 }
-                NistTapesSubcommands::Ls { show_duplicates } => {
+                NistTapesSubcommands::Ls {
+                    filter_files,
+                    show_duplicates,
+                } => {
                     let tapes = if show_duplicates {
                         db::get_nist_tapes()
                             .await?
                             .into_iter()
+                            .collect::<Vec<NistTape>>()
+                    } else if filter_files {
+                        db::get_nist_tapes()
+                            .await?
+                            .into_iter()
+                            .filter(|t| t.derived_from == 0 && t.release_files.is_empty())
                             .collect::<Vec<NistTape>>()
                     } else {
                         db::get_nist_tapes()

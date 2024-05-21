@@ -1186,7 +1186,6 @@ pub async fn save_release(release: Release) -> Result<Release> {
 pub async fn save_nist_tape_files(tape_id: i32, files: Vec<(PathBuf, u64)>) -> Result<NistTape> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
-    let mut updated_files = files.clone();
 
     sqlx::query!(
         "DELETE FROM nist_tapes_release_files WHERE nist_tape_id = $1",
@@ -1195,8 +1194,8 @@ pub async fn save_nist_tape_files(tape_id: i32, files: Vec<(PathBuf, u64)>) -> R
     .execute(&mut *tx)
     .await?;
 
-    for i in 0..updated_files.len() {
-        let path = updated_files[i].0.clone();
+    for file in files.iter() {
+        let path = file.0.clone();
         let row = sqlx::query!(
             "SELECT id, path, size FROM release_files WHERE path = $1",
             &path.to_string_lossy()
@@ -1215,17 +1214,15 @@ pub async fn save_nist_tape_files(tape_id: i32, files: Vec<(PathBuf, u64)>) -> R
         )
         .execute(&mut *tx)
         .await?;
-
-        updated_files[i] = (path, row.size as u64);
     }
 
     tx.commit().await?;
 
     let updated_tape = get_nist_tapes().await?;
-    Ok(updated_tape
+    updated_tape
         .into_iter()
         .find(|t| t.tape_id == tape_id)
-        .ok_or_else(|| Error::NistTapeNotFound(tape_id))?)
+        .ok_or_else(|| Error::NistTapeNotFound(tape_id))
 }
 
 pub async fn save_torrent(release_id: i32, torrent_path: &PathBuf) -> Result<()> {
