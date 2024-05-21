@@ -547,7 +547,7 @@ checksum = "ef8ae57c4978a2acd8b869ce6b9ca1dfe817bff704c220209fdef2c0b75a01b9"
 
 [[package]]
 name = "db"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "colored",
@@ -2509,7 +2509,7 @@ dependencies = [
 
 [[package]]
 name = "tools"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "clap",

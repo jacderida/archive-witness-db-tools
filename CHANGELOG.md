@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2024-05-21
+
+* tools 1.1.0
+* db 1.0.1
+
+### 🚀 Features
+
+- Provide `nist tapes ls` command
+- Provide `nist tapes edit` command
+- Provide `--filter-files` flag on `nist tapes ls` cmd
+- Output release ref on `nist tapes ls` command
+
+### 🐛 Bug Fixes
+
+- Process nist files correctly when converting master
+
+### 📚 Documentation
+
+- Describe deployment on server
+- Describe release process
+- Update release process steps
+
+### ⚙️ Miscellaneous Tasks
+
+- Move `access-db` cmd to `nist import` cmd
+
 ## [tools-v1.0.1] - 2024-05-20
 
 ### 🐛 Bug Fixes
