@@ -265,9 +265,30 @@ pub struct NistTape {
     pub batch: bool,
     pub clips: bool,
     pub timecode: bool,
+    pub release_files: Vec<(PathBuf, u64)>,
 }
 
 impl NistTape {
+    pub fn print(&self) {
+        println!("ID: {}", self.tape_id);
+        println!("---");
+
+        println!("Name: {}", self.tape_name);
+        println!("---");
+
+        if self.release_files.is_empty() {
+            println!("Release Files:");
+        } else {
+            println!("Release Files:");
+            for (path, size) in self.release_files.iter() {
+                println!(
+                    "{} ({})",
+                    strip_first_two_directories(path).to_string_lossy(),
+                    human_readable_size(*size)
+                );
+            }
+        }
+    }
     pub fn print_row(&self) {
         println!("{}: {}", self.tape_id, self.tape_name);
     }
@@ -305,6 +326,7 @@ impl TryFrom<Vec<String>> for NistTape {
             batch,
             clips,
             timecode,
+            release_files: Vec::new(),
         })
     }
 }

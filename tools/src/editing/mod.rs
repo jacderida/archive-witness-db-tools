@@ -2,6 +2,7 @@ pub mod fields;
 pub mod forms;
 pub mod masters;
 pub mod news;
+pub mod nist_tapes;
 #[cfg(test)]
 pub mod tests;
 pub mod videos;

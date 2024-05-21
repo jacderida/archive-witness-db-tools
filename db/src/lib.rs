@@ -387,8 +387,7 @@ pub async fn get_nist_videos() -> Result<Vec<NistVideo>> {
 
 pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
     let pool = establish_connection().await?;
-    let videos = sqlx::query_as!(
-        NistTape,
+    let rows = sqlx::query!(
         r#"
             SELECT
                 tape_id,
@@ -408,7 +407,44 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
     )
     .fetch_all(&pool)
     .await?;
-    Ok(videos)
+
+    let mut tapes = Vec::new();
+    for row in rows {
+        tapes.push(NistTape {
+            tape_id: row.tape_id,
+            video_id: row.video_id,
+            tape_name: row.tape_name,
+            tape_source: row.tape_source,
+            copy: row.copy,
+            derived_from: row.derived_from,
+            format: row.format,
+            duration_min: row.duration_min,
+            batch: row.batch,
+            clips: row.clips,
+            timecode: row.timecode,
+            release_files: Vec::new(),
+        })
+    }
+
+    for tape in tapes.iter_mut() {
+        let rows = sqlx::query!(
+            r#"
+                SELECT rf.path, rf.size
+                FROM release_files rf
+                JOIN nist_tapes_release_files ntrf ON rf.id = ntrf.release_file_id
+                WHERE ntrf.nist_tape_id = $1;
+            "#,
+            tape.tape_id
+        )
+        .fetch_all(&pool)
+        .await?;
+        for row in rows {
+            tape.release_files
+                .push((PathBuf::from(row.path), row.size as u64));
+        }
+    }
+
+    Ok(tapes)
 }
 
 pub async fn get_torrent_content(release_id: i32) -> Result<Option<Vec<u8>>> {
@@ -1145,6 +1181,51 @@ pub async fn save_release(release: Release) -> Result<Release> {
     tx.commit().await?;
 
     Ok(updated_release)
+}
+
+pub async fn save_nist_tape_files(tape_id: i32, files: Vec<(PathBuf, u64)>) -> Result<NistTape> {
+    let pool = establish_connection().await?;
+    let mut tx = pool.begin().await?;
+    let mut updated_files = files.clone();
+
+    sqlx::query!(
+        "DELETE FROM nist_tapes_release_files WHERE nist_tape_id = $1",
+        tape_id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    for i in 0..updated_files.len() {
+        let path = updated_files[i].0.clone();
+        let row = sqlx::query!(
+            "SELECT id, path, size FROM release_files WHERE path = $1",
+            &path.to_string_lossy()
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
+                INSERT INTO nist_tapes_release_files (nist_tape_id, release_file_id)
+                VALUES ($1, $2)
+                ON CONFLICT DO NOTHING
+            "#,
+            tape_id,
+            row.id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        updated_files[i] = (path, row.size as u64);
+    }
+
+    tx.commit().await?;
+
+    let updated_tape = get_nist_tapes().await?;
+    Ok(updated_tape
+        .into_iter()
+        .find(|t| t.tape_id == tape_id)
+        .ok_or_else(|| Error::NistTapeNotFound(tape_id))?)
 }
 
 pub async fn save_torrent(release_id: i32, torrent_path: &PathBuf) -> Result<()> {

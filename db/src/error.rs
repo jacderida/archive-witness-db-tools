@@ -33,6 +33,8 @@ pub enum Error {
     NistRefNotObtained,
     #[error("Could not convert NIST tape from CSV: {0}")]
     NistTapeConversionError(String),
+    #[error("Could not find tape with ID {0}")]
+    NistTapeNotFound(i32),
     #[error("Could not convert NIST video from CSV: {0}")]
     NistVideoConversionError(String),
     #[error("Could not obtain path")]

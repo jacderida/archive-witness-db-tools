@@ -235,6 +235,13 @@ enum NistImportSubcommands {
 /// Import CSV exports of NIST's Access database tables into the Postgres database.
 #[derive(Subcommand, Debug)]
 enum NistTapesSubcommands {
+    /// Edit a tape to associate it with released files.
+    #[clap(name = "edit")]
+    Edit {
+        /// The ID of the tape to edit.
+        #[arg(long)]
+        id: u32,
+    },
     /// List the tapes.
     ///
     /// By default, the duplicate tapes will be filtered.
@@ -792,6 +799,35 @@ async fn main() -> Result<()> {
                 }
             },
             NistSubcommands::Tapes(tapes_command) => match tapes_command {
+                NistTapesSubcommands::Edit { id } => {
+                    let tape = db::get_nist_tapes()
+                        .await?
+                        .into_iter()
+                        .find(|t| t.tape_id as u32 == id)
+                        .ok_or_else(|| eyre!("Could not find tape with ID {id}"))?;
+                    let form = Form::from(&tape);
+                    let files = match Editor::new().edit(&form.as_string()) {
+                        Ok(completed_form) => {
+                            if let Some(cf) = completed_form {
+                                let form = Form::from_nist_tape_str(&cf)?;
+                                editing::nist_tapes::get_release_files_from_form(&form)?
+                            } else {
+                                println!("New record will not be added to the database");
+                                return Ok(());
+                            }
+                        }
+                        Err(_) => {
+                            return Err(eyre!("An unknown error occurred when editing the video"));
+                        }
+                    };
+
+                    let updated = db::save_nist_tape_files(id as i32, files).await?;
+                    println!("===============");
+                    println!("Saved NIST tape");
+                    println!("===============");
+                    updated.print();
+                    Ok(())
+                }
                 NistTapesSubcommands::Ls { show_duplicates } => {
                     let tapes = if show_duplicates {
                         db::get_nist_tapes()
