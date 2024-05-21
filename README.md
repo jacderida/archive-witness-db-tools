@@ -16,13 +16,12 @@ binary from the latest `tools-vX.Y.Z` tag.
 To get a new version, do the following:
 
 * Create a branch, or use an existing feature branch if you have one.
-* Run `git cliff --bump > CHANGELOG.md` to generate a new changelog.
-* Check if the changelog has the version numbers correctly predicted. If not, run `git cliff --tag X`,
-  where 'X' should be replaced with the anticipated version number of the `tools` crate.
-* Run `cargo release version --execute --package <crate> <bump-type>` for each of the three crates.
+* Run `cargo release version --execute --package <crate> <bump-type>` for each crate with changes.
   See `cargo release version --help` for the possible values for `<bump-type>`. You need to specify
   the value manually: `cargo release` won't check your commits for breaking changes.
-* Create a `chore(release):` commit.
+* Run `git cliff --unreleased --tag x.y.z` to get the changelog for the unreleased commits.
+* Put the above output in CHANGELOG.md and manually document the changed crate versions.
+* Create a `chore(release):` commit with the bumped versions and changelog addition.
 * Checkout `main` and rebase the branch in.
 * Run `cargo release tag --workspace --execute` to create tags for the bumped versions.
 * Run `cargo release push --execute` to push the tags and commits.
