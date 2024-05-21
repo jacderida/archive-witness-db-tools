@@ -860,7 +860,7 @@ async fn main() -> Result<()> {
                             .collect::<Vec<NistTape>>()
                     };
                     for tape in tapes.iter() {
-                        tape.print_row();
+                        tape.print_row()?;
                     }
                     Ok(())
                 }

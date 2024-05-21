@@ -7,6 +7,7 @@ use crate::{
     },
 };
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use colored::Colorize;
 use image::GenericImageView;
 use magick_rust::{magick_wand_genesis, MagickWand};
 use regex::Regex;
@@ -289,8 +290,60 @@ impl NistTape {
             }
         }
     }
-    pub fn print_row(&self) {
-        println!("{}: {}", self.tape_id, self.tape_name);
+
+    pub fn print_row(&self) -> Result<()> {
+        if let Some(release_ref) = self.release_ref()? {
+            println!(
+                "{}: {} [{}]",
+                self.tape_id,
+                self.tape_name,
+                release_ref.green()
+            );
+        } else {
+            println!("{}: {}", self.tape_id, self.tape_name);
+        }
+        Ok(())
+    }
+
+    pub fn release_ref(&self) -> Result<Option<String>> {
+        if self.release_files.is_empty() {
+            Ok(None)
+        } else {
+            let path = &self.release_files[0].0;
+            let mut components = path.components();
+
+            let ref_part1 = components
+                .nth(1)
+                .ok_or_else(|| Error::NistRefNotObtained)?
+                .as_os_str()
+                .to_string_lossy()
+                .to_string();
+            let re = Regex::new(r"^Release_(\d+)$")?;
+            let caps = re
+                .captures(&ref_part1)
+                .ok_or_else(|| Error::NistRefNotObtained)?;
+            let matched = caps.get(1).ok_or_else(|| Error::NistRefNotObtained)?;
+            let ref_part1 = format!("R{}", matched.as_str());
+
+            let re = Regex::new(r"^42A\d{4} - G\d{2}D\d{1,}$")?;
+            let ref_part2 = components
+                .nth(1)
+                .ok_or_else(|| Error::NistRefNotObtained)?
+                .as_os_str()
+                .to_string_lossy()
+                .to_string();
+            if re.is_match(&ref_part2) {
+                return Ok(Some(format!("{}: {}", ref_part1, ref_part2)));
+            }
+
+            let ref_part2 = components
+                .last()
+                .ok_or_else(|| Error::NistRefNotObtained)?
+                .as_os_str()
+                .to_string_lossy()
+                .to_string();
+            Ok(Some(format!("{}: {}", ref_part1, ref_part2)))
+        }
     }
 }
 

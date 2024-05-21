@@ -42,6 +42,8 @@ pub enum Error {
     #[error("Could not find release with ID '{0}'")]
     ReleaseNotFound(u32),
     #[error(transparent)]
+    RegexError(#[from] regex::Error),
+    #[error(transparent)]
     SqlError(#[from] sqlx::Error),
     #[error(transparent)]
     VarError(#[from] std::env::VarError),
