@@ -244,9 +244,9 @@ impl From<&MasterVideo> for Form {
         form.add_field(Box::new(OptionalMultilineListField::new(
             "NIST Files",
             &model
-                .timestamps
+                .nist_files
                 .iter()
-                .map(|c| c.to_string())
+                .map(|c| c.0.to_string_lossy().to_string())
                 .collect::<Vec<String>>(),
         )));
 
