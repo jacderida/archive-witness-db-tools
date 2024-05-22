@@ -207,6 +207,8 @@ enum NistSubcommands {
     Import(NistImportSubcommands),
     #[clap(subcommand)]
     Tapes(NistTapesSubcommands),
+    #[clap(subcommand)]
+    Videos(NistVideosSubcommands),
 }
 
 /// Import CSV exports of NIST's Access database tables into the Postgres database.
@@ -260,6 +262,16 @@ enum NistTapesSubcommands {
         #[arg(long, conflicts_with = "filter_files")]
         show_duplicates: bool,
     },
+}
+
+/// Manage videos from NIST's database.
+#[derive(Subcommand, Debug)]
+enum NistVideosSubcommands {
+    /// List the videos.
+    ///
+    /// By default, the duplicate tapes will be filtered.
+    #[clap(name = "ls")]
+    Ls {},
 }
 
 /// Manage 911datasets.org releases
@@ -861,6 +873,16 @@ async fn main() -> Result<()> {
                     };
                     for tape in tapes.iter() {
                         tape.print_row()?;
+                    }
+                    Ok(())
+                }
+            },
+            NistSubcommands::Videos(videos_command) => match videos_command {
+                NistVideosSubcommands::Ls {} => {
+                    println!("blah");
+                    let videos = db::get_nist_videos().await?;
+                    for video in videos.iter() {
+                        video.print_row();
                     }
                     Ok(())
                 }

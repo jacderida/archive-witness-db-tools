@@ -213,6 +213,15 @@ pub struct NistVideo {
     pub notes: Option<String>,
 }
 
+impl NistVideo {
+    pub fn print_row(&self) {
+        println!(
+            "{}: {} ({}m)",
+            self.video_id, self.video_title, self.duration_min
+        );
+    }
+}
+
 impl TryFrom<Vec<String>> for NistVideo {
     type Error = ConversionError;
 
