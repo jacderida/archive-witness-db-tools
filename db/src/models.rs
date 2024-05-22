@@ -301,41 +301,42 @@ impl NistTape {
     }
 
     pub fn print_row(&self) -> Result<()> {
+        let mut output = String::new();
+
+        let duration = format!("({}m)", self.duration_min);
+        if self.derived_from != 0 {
+            output.push_str(&format!(
+                "{}: {} {}",
+                self.tape_id.to_string().yellow(),
+                self.tape_name.yellow(),
+                duration.yellow()
+            ));
+        } else {
+            output.push_str(&format!(
+                "{}: {} {}",
+                self.tape_id, self.tape_name, duration
+            ));
+        }
+
         if let Some(release_ref) = self.release_ref()? {
             if self.derived_from != 0 {
-                let duration = format!("({}m)", self.duration_min);
-                println!(
-                    "{}: {} {} [{}]",
-                    self.tape_id.to_string().yellow(),
-                    self.tape_name.yellow(),
-                    duration.yellow(),
-                    release_ref.yellow()
-                );
+                output.push_str(&format!(" [{}]", release_ref.yellow()));
             } else {
-                println!(
-                    "{}: {} ({}m) [{}]",
-                    self.tape_id,
-                    self.tape_name,
-                    self.duration_min,
-                    release_ref.green()
-                );
-            }
-        } else {
-            if self.derived_from != 0 {
-                let duration = format!("({}m)", self.duration_min);
-                println!(
-                    "{}: {} {}",
-                    self.tape_id.to_string().yellow(),
-                    self.tape_name.yellow(),
-                    duration.yellow()
-                );
-            } else {
-                println!(
-                    "{}: {} ({}m)",
-                    self.tape_id, self.tape_name, self.duration_min
-                );
+                output.push_str(&format!(" [{}]", release_ref.green()));
             }
         }
+
+        if self.batch {
+            output.push_str(&format!(" {}", "B".blue()));
+        }
+        if self.clips {
+            output.push_str(&format!(" {}", "C".blue()));
+        }
+        if self.timecode {
+            output.push_str(&format!(" {}", "T".blue()));
+        }
+
+        println!("{}", output);
         Ok(())
     }
 
