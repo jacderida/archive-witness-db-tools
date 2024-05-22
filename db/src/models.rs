@@ -303,13 +303,17 @@ impl NistTape {
     pub fn print_row(&self) -> Result<()> {
         if let Some(release_ref) = self.release_ref()? {
             println!(
-                "{}: {} [{}]",
+                "{}: {} ({}m) [{}]",
                 self.tape_id,
                 self.tape_name,
+                self.duration_min,
                 release_ref.green()
             );
         } else {
-            println!("{}: {}", self.tape_id, self.tape_name);
+            println!(
+                "{}: {} ({}m)",
+                self.tape_id, self.tape_name, self.duration_min
+            );
         }
         Ok(())
     }
