@@ -386,6 +386,8 @@ pub async fn get_nist_videos() -> Result<Vec<NistVideo>> {
 }
 
 pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
+    let videos = get_nist_videos().await?;
+
     let pool = establish_connection().await?;
     let rows = sqlx::query!(
         r#"
@@ -410,9 +412,12 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
 
     let mut tapes = Vec::new();
     for row in rows {
+        let video = videos
+            .iter()
+            .find(|v| v.video_id == row.video_id)
+            .ok_or_else(|| Error::NistVideoNotFound(row.video_id))?;
         tapes.push(NistTape {
             tape_id: row.tape_id,
-            video_id: row.video_id,
             tape_name: row.tape_name,
             tape_source: row.tape_source,
             copy: row.copy,
@@ -423,6 +428,7 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
             clips: row.clips,
             timecode: row.timecode,
             release_files: Vec::new(),
+            video: video.clone(),
         })
     }
 
@@ -735,7 +741,7 @@ pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> Result<()> {
                 timecode
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"#,
             tape.tape_id,
-            tape.video_id,
+            tape.video.video_id,
             tape.tape_name,
             tape.tape_source,
             tape.copy,

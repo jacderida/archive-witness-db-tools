@@ -37,6 +37,8 @@ pub enum Error {
     NistTapeNotFound(i32),
     #[error("Could not convert NIST video from CSV: {0}")]
     NistVideoConversionError(String),
+    #[error("Could not find video with ID {0}")]
+    NistVideoNotFound(i32),
     #[error("Could not obtain path")]
     PathNotObtained,
     #[error("Could not find release with ID '{0}'")]

@@ -202,7 +202,7 @@ pub enum ConversionError {
     ParseError(#[from] std::num::ParseIntError),
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(Clone, Default, sqlx::FromRow)]
 pub struct NistVideo {
     pub video_id: i32,
     pub video_title: String,
@@ -262,10 +262,9 @@ impl TryFrom<Vec<String>> for NistVideo {
     }
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(Clone, Default, sqlx::FromRow)]
 pub struct NistTape {
     pub tape_id: i32,
-    pub video_id: i32,
     pub tape_name: String,
     pub tape_source: String,
     pub copy: i32,
@@ -276,6 +275,7 @@ pub struct NistTape {
     pub clips: bool,
     pub timecode: bool,
     pub release_files: Vec<(PathBuf, u64)>,
+    pub video: NistVideo,
 }
 
 impl NistTape {
@@ -300,7 +300,7 @@ impl NistTape {
         }
     }
 
-    pub fn print_row(&self) -> Result<()> {
+    pub fn print_row(&self, show_video: bool) -> Result<()> {
         let mut output = String::new();
 
         let duration = format!("({}m)", self.duration_min);
@@ -337,6 +337,19 @@ impl NistTape {
         }
 
         println!("{}", output);
+        if show_video {
+            if let Some(date) = self.video.broadcast_date {
+                println!(
+                    "    {}: {} ({}m) [{}]",
+                    self.video.video_id, self.video.video_title, self.video.duration_min, date
+                );
+            } else {
+                println!(
+                    "    {}: {} ({}m)",
+                    self.video.video_id, self.video.video_title, self.video.duration_min
+                );
+            }
+        }
         Ok(())
     }
 
@@ -404,7 +417,6 @@ impl TryFrom<Vec<String>> for NistTape {
 
         Ok(NistTape {
             tape_id,
-            video_id,
             tape_name,
             tape_source,
             copy,
@@ -415,6 +427,10 @@ impl TryFrom<Vec<String>> for NistTape {
             clips,
             timecode,
             release_files: Vec::new(),
+            video: NistVideo {
+                video_id,
+                ..Default::default()
+            },
         })
     }
 }

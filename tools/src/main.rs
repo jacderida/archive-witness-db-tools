@@ -261,6 +261,9 @@ enum NistTapesSubcommands {
         /// This flag is mutually exclusive with --filter-files.
         #[arg(long, conflicts_with = "filter_files")]
         show_duplicates: bool,
+        /// Set to show the tape's corresponding video record.
+        #[arg(long, conflicts_with = "filter_files")]
+        show_videos: bool,
     },
 }
 
@@ -852,6 +855,7 @@ async fn main() -> Result<()> {
                 NistTapesSubcommands::Ls {
                     filter_files,
                     show_duplicates,
+                    show_videos,
                 } => {
                     let tapes = if show_duplicates {
                         db::get_nist_tapes()
@@ -872,7 +876,7 @@ async fn main() -> Result<()> {
                             .collect::<Vec<NistTape>>()
                     };
                     for tape in tapes.iter() {
-                        tape.print_row()?;
+                        tape.print_row(show_videos)?;
                     }
                     Ok(())
                 }
