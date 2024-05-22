@@ -232,7 +232,7 @@ enum NistImportSubcommands {
     },
 }
 
-/// Import CSV exports of NIST's Access database tables into the Postgres database.
+/// Manage tapes from NIST's database.
 #[derive(Subcommand, Debug)]
 enum NistTapesSubcommands {
     /// Edit a tape to associate it with released files.
