@@ -303,28 +303,15 @@ impl NistTape {
     pub fn print_row(&self, show_video: bool) -> Result<()> {
         let mut output = String::new();
 
-        let duration = format!("({}m)", self.duration_min);
+        output.push_str(&format!("{}: ", self.tape_id));
+
         if self.derived_from != 0 {
-            output.push_str(&format!(
-                "{}: {} {}",
-                self.tape_id.to_string().yellow(),
-                self.tape_name.yellow(),
-                duration.yellow()
-            ));
+            output.push_str(&format!("{} ", self.tape_name.yellow()));
         } else {
-            output.push_str(&format!(
-                "{}: {} {}",
-                self.tape_id, self.tape_name, duration
-            ));
+            output.push_str(&format!("{} ", &self.tape_name));
         }
 
-        if let Some(release_ref) = self.release_ref()? {
-            if self.derived_from != 0 {
-                output.push_str(&format!(" [{}]", release_ref.yellow()));
-            } else {
-                output.push_str(&format!(" [{}]", release_ref.green()));
-            }
-        }
+        output.push_str(&format!("({}m)", self.duration_min));
 
         if self.batch {
             output.push_str(&format!(" {}", "B".blue()));
@@ -337,6 +324,13 @@ impl NistTape {
         }
 
         println!("{}", output);
+
+        if let Some(release_refs) = self.release_ref()? {
+            for release_ref in release_refs.iter() {
+                println!("  {}", release_ref.green());
+            }
+        }
+
         if show_video {
             if let Some(date) = self.video.broadcast_date {
                 println!(
@@ -350,47 +344,53 @@ impl NistTape {
                 );
             }
         }
+
         Ok(())
     }
 
-    pub fn release_ref(&self) -> Result<Option<String>> {
+    pub fn release_ref(&self) -> Result<Option<Vec<String>>> {
         if self.release_files.is_empty() {
             Ok(None)
         } else {
-            let path = &self.release_files[0].0;
-            let mut components = path.components();
+            let mut refs = Vec::new();
+            for (path, _) in self.release_files.iter() {
+                let mut components = path.components();
 
-            let ref_part1 = components
-                .nth(1)
-                .ok_or_else(|| Error::NistRefNotObtained)?
-                .as_os_str()
-                .to_string_lossy()
-                .to_string();
-            let re = Regex::new(r"^Release_(\d+)$")?;
-            let caps = re
-                .captures(&ref_part1)
-                .ok_or_else(|| Error::NistRefNotObtained)?;
-            let matched = caps.get(1).ok_or_else(|| Error::NistRefNotObtained)?;
-            let ref_part1 = format!("R{}", matched.as_str());
+                let ref_part1 = components
+                    .nth(1)
+                    .ok_or_else(|| Error::NistRefNotObtained)?
+                    .as_os_str()
+                    .to_string_lossy()
+                    .to_string();
+                let re = Regex::new(r"^Release_(\d+)$")?;
+                let caps = re
+                    .captures(&ref_part1)
+                    .ok_or_else(|| Error::NistRefNotObtained)?;
+                let matched = caps.get(1).ok_or_else(|| Error::NistRefNotObtained)?;
+                let ref_part1 = format!("R{}", matched.as_str());
 
-            let re = Regex::new(r"^42A\d{4} - G\d{2}D\d{1,}$")?;
-            let ref_part2 = components
-                .nth(1)
-                .ok_or_else(|| Error::NistRefNotObtained)?
-                .as_os_str()
-                .to_string_lossy()
-                .to_string();
-            if re.is_match(&ref_part2) {
-                return Ok(Some(format!("{}: {}", ref_part1, ref_part2)));
+                let re = Regex::new(r"^42A\d{4} - G\d{2}D\d{1,}$")?;
+                let ref_part2 = components
+                    .nth(1)
+                    .ok_or_else(|| Error::NistRefNotObtained)?
+                    .as_os_str()
+                    .to_string_lossy()
+                    .to_string();
+                let ref_to_add = if re.is_match(&ref_part2) {
+                    format!("{}: {}", ref_part1, ref_part2)
+                } else {
+                    components
+                        .last()
+                        .ok_or_else(|| Error::NistRefNotObtained)?
+                        .as_os_str()
+                        .to_string_lossy()
+                        .to_string()
+                };
+                if !refs.contains(&ref_to_add) {
+                    refs.push(ref_to_add);
+                }
             }
-
-            let ref_part2 = components
-                .last()
-                .ok_or_else(|| Error::NistRefNotObtained)?
-                .as_os_str()
-                .to_string_lossy()
-                .to_string();
-            Ok(Some(format!("{}: {}", ref_part1, ref_part2)))
+            Ok(Some(refs))
         }
     }
 }

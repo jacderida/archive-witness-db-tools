@@ -875,6 +875,7 @@ async fn main() -> Result<()> {
                             .filter(|t| t.derived_from == 0)
                             .collect::<Vec<NistTape>>()
                     };
+
                     for tape in tapes.iter() {
                         tape.print_row(show_videos)?;
                     }
@@ -883,7 +884,6 @@ async fn main() -> Result<()> {
             },
             NistSubcommands::Videos(videos_command) => match videos_command {
                 NistVideosSubcommands::Ls {} => {
-                    println!("blah");
                     let videos = db::get_nist_videos().await?;
                     for video in videos.iter() {
                         video.print_row();
