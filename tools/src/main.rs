@@ -249,20 +249,16 @@ enum NistTapesSubcommands {
     /// By default, the duplicate tapes will be filtered.
     #[clap(name = "ls")]
     Ls {
-        /// Set to filter tapes with files associated.
+        /// Set to filter tapes that already have released files associated with them.
         ///
         /// Provides the ability to see only those tapes we still need to associate with files.
-        ///
-        /// This flag is mutually exclusive with --show-duplicates.
-        #[arg(long, conflicts_with = "show_duplicates")]
-        filter_files: bool,
+        #[arg(long)]
+        filter_found: bool,
         /// Set to show duplicate tapes.
-        ///
-        /// This flag is mutually exclusive with --filter-files.
-        #[arg(long, conflicts_with = "filter_files")]
+        #[arg(long)]
         show_duplicates: bool,
         /// Set to show the tape's corresponding video record.
-        #[arg(long, conflicts_with = "filter_files")]
+        #[arg(long)]
         show_videos: bool,
     },
     /// Print a full tape record.
@@ -860,20 +856,26 @@ async fn main() -> Result<()> {
                     Ok(())
                 }
                 NistTapesSubcommands::Ls {
-                    filter_files,
+                    filter_found,
                     show_duplicates,
                     show_videos,
                 } => {
-                    let tapes = if show_duplicates {
-                        db::get_nist_tapes()
-                            .await?
-                            .into_iter()
-                            .collect::<Vec<NistTape>>()
-                    } else if filter_files {
+                    let tapes = if show_duplicates && filter_found {
                         db::get_nist_tapes()
                             .await?
                             .into_iter()
                             .filter(|t| t.derived_from == 0 && t.release_files.is_empty())
+                            .collect::<Vec<NistTape>>()
+                    } else if show_duplicates {
+                        db::get_nist_tapes()
+                            .await?
+                            .into_iter()
+                            .collect::<Vec<NistTape>>()
+                    } else if filter_found {
+                        db::get_nist_tapes()
+                            .await?
+                            .into_iter()
+                            .filter(|t| t.release_files.is_empty())
                             .collect::<Vec<NistTape>>()
                     } else {
                         db::get_nist_tapes()
