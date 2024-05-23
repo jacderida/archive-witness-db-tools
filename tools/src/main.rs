@@ -240,7 +240,7 @@ enum NistTapesSubcommands {
     /// Edit a tape to associate it with released files.
     #[clap(name = "edit")]
     Edit {
-        /// The ID of the tape to edit.
+        /// The ID of the tape.
         #[arg(long)]
         id: u32,
     },
@@ -264,6 +264,13 @@ enum NistTapesSubcommands {
         /// Set to show the tape's corresponding video record.
         #[arg(long, conflicts_with = "filter_files")]
         show_videos: bool,
+    },
+    /// Print a full tape record.
+    #[clap(name = "print")]
+    Print {
+        /// The ID of the tape.
+        #[arg(long)]
+        id: u32,
     },
 }
 
@@ -879,6 +886,15 @@ async fn main() -> Result<()> {
                     for tape in tapes.iter() {
                         tape.print_row(show_videos)?;
                     }
+                    Ok(())
+                }
+                NistTapesSubcommands::Print { id } => {
+                    let tape = db::get_nist_tapes()
+                        .await?
+                        .into_iter()
+                        .find(|t| t.tape_id == id as i32)
+                        .ok_or_else(|| eyre!("Could not find tape with ID {id}"))?;
+                    tape.print();
                     Ok(())
                 }
             },

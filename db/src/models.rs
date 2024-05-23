@@ -282,8 +282,46 @@ impl NistTape {
     pub fn print(&self) {
         println!("ID: {}", self.tape_id);
         println!("---");
-
         println!("Name: {}", self.tape_name);
+        println!("---");
+        println!("Source: {}", self.tape_source);
+        println!("---");
+
+        if self.derived_from != 0 {
+            println!("Is Copy: yes");
+        } else {
+            println!("Is Copy: no");
+        }
+        println!("---");
+
+        println!("Duration: {}m", self.duration_min);
+        println!("---");
+        println!("Format: {}", self.format);
+        println!("---");
+
+        println!(
+            "Associated video: {}: {}",
+            self.video.video_id, self.video.video_title
+        );
+        println!("---");
+
+        if self.batch {
+            println!("Is part of batch: yes");
+        } else {
+            println!("Is part of batch: no");
+        }
+        println!("---");
+        if self.clips {
+            println!("Has clips: yes");
+        } else {
+            println!("Has clips: no");
+        }
+        println!("---");
+        if self.timecode {
+            println!("Has timer: yes");
+        } else {
+            println!("Has timer: no");
+        }
         println!("---");
 
         if self.release_files.is_empty() {
