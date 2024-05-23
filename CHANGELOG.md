@@ -2,7 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2024-05-21
+## 1.2.0 - 2024-05-23
+
+* tools 1.2.0
+* db 1.0.2
+
+### 🚀 Features
+
+- Provide `nist videos ls` command
+- Provide duration on `nist tapes ls` command
+- Use yellow to indicate duplicates in `nist ls tapes` cmd
+- Indicate batch/clips/timecode on `nist tapes ls` cmd
+- Provide `--show-videos` on `nist tapes ls` cmd
+- Support multiple release refs in `nist tapes ls` cmd
+- Provide `nist tapes print` cmd
+- [**breaking**] Rename `--filter-files` to `--filter-found`
+
+### 🐛 Bug Fixes
+
+- Change incorrect description on `nist tapes` subcommand
+
+## 1.1.0 - 2024-05-21
 
 * tools 1.1.0
 * db 1.0.1
@@ -28,13 +48,13 @@ All notable changes to this project will be documented in this file.
 
 - Move `access-db` cmd to `nist import` cmd
 
-## [tools-v1.0.1] - 2024-05-20
+## 1.0.1 - 2024-05-20
 
 ### 🐛 Bug Fixes
 
 - Update incorrect torrent url
 
-## [tools-v1.0.0] - 2024-05-20
+## 1.0.0 - 2024-05-20
 
 ### 🚀 Features
 
