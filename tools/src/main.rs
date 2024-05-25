@@ -10,12 +10,14 @@ use colored::Colorize;
 use db::{
     cumulus::*,
     helpers::parse_duration,
-    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, Video},
+    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, NistTape, Video},
 };
 use dialoguer::Editor;
 use editing::forms::Form;
+use skim::prelude::*;
 use sqlx::postgres::types::PgInterval;
 use std::collections::HashSet;
+use std::io::Cursor;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -243,7 +245,7 @@ enum NistTapesSubcommands {
     Edit {
         /// The ID of the tape.
         #[arg(long)]
-        id: u32,
+        id: Option<u32>,
     },
     /// List the tapes.
     ///
@@ -820,11 +822,37 @@ async fn main() -> Result<()> {
             },
             NistSubcommands::Tapes(tapes_command) => match tapes_command {
                 NistTapesSubcommands::Edit { id } => {
-                    let tape = db::get_nist_tapes()
-                        .await?
-                        .into_iter()
-                        .find(|t| t.tape_id as u32 == id)
-                        .ok_or_else(|| eyre!("Could not find tape with ID {id}"))?;
+                    let tapes = db::get_nist_tapes().await?;
+                    let tape = if let Some(id) = id {
+                        tapes
+                            .into_iter()
+                            .find(|t| t.tape_id as u32 == id)
+                            .ok_or_else(|| eyre!("Could not find tape with ID {id}"))?
+                    } else {
+                        let mut search_string = String::new();
+                        for tape in tapes.iter() {
+                            search_string
+                                .push_str(&format!("{} {}\n", tape.tape_id, tape.tape_name));
+                        }
+                        let options = SkimOptionsBuilder::default()
+                            .height(Some("70%"))
+                            .multi(false)
+                            .prompt(Some("Please select a tape to edit\n"))
+                            .build()?;
+                        let item_reader = SkimItemReader::default();
+                        let items = item_reader.of_bufread(Cursor::new(search_string));
+                        let selected = Skim::run_with(&options, Some(items))
+                            .map(|out| out.selected_items)
+                            .unwrap();
+                        let result = String::from(selected.get(0).unwrap().output());
+                        let split: Vec<String> = result.split(' ').map(String::from).collect();
+                        let id: i32 = split[0].parse()?;
+                        tapes
+                            .into_iter()
+                            .find(|t| t.tape_id == id)
+                            .ok_or_else(|| eyre!("Could not find tape with ID {id}"))?
+                    };
+
                     let form = Form::from(&tape);
                     let files = match Editor::new().edit(&form.as_string()) {
                         Ok(completed_form) => {
@@ -841,7 +869,7 @@ async fn main() -> Result<()> {
                         }
                     };
 
-                    let updated = db::save_nist_tape_files(id as i32, files).await?;
+                    let updated = db::save_nist_tape_files(tape.tape_id, files).await?;
                     println!("===============");
                     println!("Saved NIST tape");
                     println!("===============");
