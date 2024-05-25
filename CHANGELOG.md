@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.2 - 2024-05-25
+
+### 🚀 Features
+
+- `nist tapes edit` cmd prompts for confirmation
+
 ## 1.3.1 - 2024-05-25
 
 * tools 1.3.1
