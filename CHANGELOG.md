@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.1 - 2024-05-25
+
+* tools 1.3.1
+
+### 🚀 Features
+
+- `nist tapes ls` cmd includes broadcast date
+
 ## 1.3.0 - 2024-05-25
 
 * tools 1.3.0
