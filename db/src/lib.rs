@@ -13,7 +13,10 @@ use dotenvy::dotenv;
 use sqlx::pool::Pool;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Postgres;
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+};
 
 pub async fn establish_connection() -> Result<Pool<Postgres>> {
     dotenv().ok();
@@ -451,6 +454,96 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
     }
 
     Ok(tapes)
+}
+
+pub async fn get_nist_tapes_grouped_by_video() -> Result<BTreeMap<NistVideo, Vec<NistTape>>> {
+    let videos = get_nist_videos().await?;
+    let pool = establish_connection().await?;
+
+    let rows = sqlx::query!(
+        r#"
+            SELECT
+                video_id,
+                array_agg(tape_id ORDER BY tape_id) AS tape_ids,
+                array_agg(tape_name ORDER BY tape_id) AS tape_names,
+                array_agg(tape_source ORDER BY tape_id) AS tape_sources,
+                array_agg(copy ORDER BY tape_id) AS copies,
+                array_agg(derived_from ORDER BY tape_id) AS derived_froms,
+                array_agg(format ORDER BY tape_id) AS formats,
+                array_agg(duration_min ORDER BY tape_id) AS durations,
+                array_agg(batch ORDER BY tape_id) AS batches,
+                array_agg(clips ORDER BY tape_id) AS clips,
+                array_agg(timecode ORDER BY tape_id) AS timecodes
+            FROM nist_tapes
+            GROUP BY video_id
+        "#
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let mut grouped_tapes: BTreeMap<NistVideo, Vec<NistTape>> = BTreeMap::new();
+
+    for row in rows {
+        let video = videos
+            .iter()
+            .find(|v| v.video_id == row.video_id)
+            .ok_or_else(|| Error::NistVideoNotFound(row.video_id))?
+            .clone();
+
+        let tape_ids = row.tape_ids.unwrap_or_default();
+        let tape_names = row.tape_names.unwrap_or_default();
+        let tape_sources = row.tape_sources.unwrap_or_default();
+        let copies = row.copies.unwrap_or_default();
+        let derived_froms = row.derived_froms.unwrap_or_default();
+        let formats = row.formats.unwrap_or_default();
+        let durations = row.durations.unwrap_or_default();
+        let batches = row.batches.unwrap_or_default();
+        let clips = row.clips.unwrap_or_default();
+        let timecodes = row.timecodes.unwrap_or_default();
+
+        let mut tapes = Vec::new();
+        for i in 0..tape_ids.len() {
+            tapes.push(NistTape {
+                tape_id: tape_ids[i],
+                tape_name: tape_names[i].clone(),
+                tape_source: tape_sources[i].clone(),
+                copy: copies[i],
+                derived_from: derived_froms[i],
+                format: formats[i].clone(),
+                duration_min: durations[i],
+                batch: batches[i],
+                clips: clips[i],
+                timecode: timecodes[i],
+                release_files: Vec::new(),
+                video: video.clone(),
+            });
+        }
+
+        grouped_tapes.insert(video, tapes);
+    }
+
+    for (_, tapes) in grouped_tapes.iter_mut() {
+        for tape in tapes.iter_mut() {
+            let rows = sqlx::query!(
+                r#"
+                    SELECT rf.path, rf.size
+                    FROM release_files rf
+                    JOIN nist_tapes_release_files ntrf ON rf.id = ntrf.release_file_id
+                    WHERE ntrf.nist_tape_id = $1;
+                "#,
+                tape.tape_id
+            )
+            .fetch_all(&pool)
+            .await?;
+
+            for row in rows {
+                tape.release_files
+                    .push((PathBuf::from(row.path), row.size as u64));
+            }
+        }
+    }
+
+    Ok(grouped_tapes)
 }
 
 pub async fn get_torrent_content(release_id: i32) -> Result<Option<Vec<u8>>> {

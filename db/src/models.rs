@@ -18,6 +18,7 @@ use sqlx::{
     },
     FromRow,
 };
+use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::process::Command;
 use thiserror::Error;
@@ -211,6 +212,26 @@ pub struct NistVideo {
     pub duration_min: i32,
     pub subject: Option<String>,
     pub notes: Option<String>,
+}
+
+impl PartialEq for NistVideo {
+    fn eq(&self, other: &Self) -> bool {
+        self.video_id == other.video_id
+    }
+}
+
+impl Eq for NistVideo {}
+
+impl PartialOrd for NistVideo {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for NistVideo {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.video_id.cmp(&other.video_id)
+    }
 }
 
 impl NistVideo {

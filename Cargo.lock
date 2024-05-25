@@ -2514,6 +2514,7 @@ dependencies = [
  "chrono",
  "clap",
  "color-eyre",
+ "colored",
  "csv",
  "db",
  "db-youtube",

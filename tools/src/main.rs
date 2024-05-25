@@ -6,10 +6,11 @@ pub mod static_data;
 use crate::releases::*;
 use clap::{Parser, Subcommand};
 use color_eyre::{eyre::eyre, Result};
+use colored::Colorize;
 use db::{
     cumulus::*,
     helpers::parse_duration,
-    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, NistTape, Video},
+    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, Video},
 };
 use dialoguer::Editor;
 use editing::forms::Form;
@@ -248,19 +249,7 @@ enum NistTapesSubcommands {
     ///
     /// By default, the duplicate tapes will be filtered.
     #[clap(name = "ls")]
-    Ls {
-        /// Set to filter tapes that already have released files associated with them.
-        ///
-        /// Provides the ability to see only those tapes we still need to associate with files.
-        #[arg(long)]
-        filter_found: bool,
-        /// Set to show duplicate tapes.
-        #[arg(long)]
-        show_duplicates: bool,
-        /// Set to show the tape's corresponding video record.
-        #[arg(long)]
-        show_videos: bool,
-    },
+    Ls {},
     /// Print a full tape record.
     #[clap(name = "print")]
     Print {
@@ -855,38 +844,39 @@ async fn main() -> Result<()> {
                     updated.print();
                     Ok(())
                 }
-                NistTapesSubcommands::Ls {
-                    filter_found,
-                    show_duplicates,
-                    show_videos,
-                } => {
-                    let tapes = if show_duplicates && filter_found {
-                        db::get_nist_tapes()
-                            .await?
-                            .into_iter()
-                            .filter(|t| t.derived_from == 0 && t.release_files.is_empty())
-                            .collect::<Vec<NistTape>>()
-                    } else if show_duplicates {
-                        db::get_nist_tapes()
-                            .await?
-                            .into_iter()
-                            .collect::<Vec<NistTape>>()
-                    } else if filter_found {
-                        db::get_nist_tapes()
-                            .await?
-                            .into_iter()
-                            .filter(|t| t.release_files.is_empty())
-                            .collect::<Vec<NistTape>>()
-                    } else {
-                        db::get_nist_tapes()
-                            .await?
-                            .into_iter()
-                            .filter(|t| t.derived_from == 0)
-                            .collect::<Vec<NistTape>>()
-                    };
+                NistTapesSubcommands::Ls {} => {
+                    let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
+                    for (video, tapes) in tapes_grouped_by_video.iter() {
+                        println!("{}: {}", video.video_id, video.video_title.blue(),);
+                        for tape in tapes.iter() {
+                            let mut s = String::new();
+                            s.push_str(&format!("  {}: ", tape.tape_id));
+                            if tape.derived_from == 0 {
+                                s.push_str(&format!("{} ", tape.tape_name));
+                            } else {
+                                s.push_str(&format!("{}", tape.tape_name.yellow()));
+                                s.push_str(&format!(" [{}] ", tape.derived_from));
+                            }
+                            s.push_str(&format!("({}m)", tape.duration_min));
 
-                    for tape in tapes.iter() {
-                        tape.print_row(show_videos)?;
+                            if tape.batch {
+                                s.push_str(&format!(" {}", "B".to_string().blue()));
+                            }
+                            if tape.clips {
+                                s.push_str(&format!(" {}", "C".to_string().blue()));
+                            }
+                            if tape.timecode {
+                                s.push_str(&format!(" {}", "T".to_string().blue()));
+                            }
+
+                            println!("{}", s);
+
+                            if let Some(nist_refs) = tape.release_ref()? {
+                                for nist_ref in nist_refs {
+                                    println!("    {}", nist_ref.green());
+                                }
+                            }
+                        }
                     }
                     Ok(())
                 }
