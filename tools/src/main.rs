@@ -17,7 +17,7 @@ use editing::forms::Form;
 use skim::prelude::*;
 use sqlx::postgres::types::PgInterval;
 use std::collections::HashSet;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -852,6 +852,15 @@ async fn main() -> Result<()> {
                             .find(|t| t.tape_id == id)
                             .ok_or_else(|| eyre!("Could not find tape with ID {id}"))?
                     };
+
+                    println!("About to edit {}", tape.tape_name);
+                    println!("Proceed? [y/n]");
+                    std::io::stdout().flush()?;
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input)?;
+                    if input.trim().to_lowercase() != "y" {
+                        return Ok(());
+                    }
 
                     let form = Form::from(&tape);
                     let files = match Editor::new().edit(&form.as_string()) {
