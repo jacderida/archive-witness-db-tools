@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.0 - 2024-05-25
+
+* tools 1.3.0
+* db 1.0.3
+
+### 🚀 Features
+
+- [**breaking**] `nist tapes ls` command groups tapes by video
+- Provide `--find` arg for `nist tapes ls` cmd
+- `nist tapes edit` can select tape with fuzzy find
+
 ## 1.2.0 - 2024-05-23
 
 * tools 1.2.0
