@@ -10,7 +10,7 @@ use colored::Colorize;
 use db::{
     cumulus::*,
     helpers::parse_duration,
-    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, NistTape, Video},
+    models::{MasterVideo, NewsAffiliate, NewsBroadcast, NewsNetwork, Video},
 };
 use dialoguer::Editor;
 use editing::forms::Form;
@@ -844,7 +844,7 @@ async fn main() -> Result<()> {
                         let selected = Skim::run_with(&options, Some(items))
                             .map(|out| out.selected_items)
                             .unwrap();
-                        let result = String::from(selected.get(0).unwrap().output());
+                        let result = String::from(selected.first().unwrap().output());
                         let split: Vec<String> = result.split(' ').map(String::from).collect();
                         let id: i32 = split[0].parse()?;
                         tapes
@@ -881,10 +881,26 @@ async fn main() -> Result<()> {
                     for (video, tapes) in tapes_grouped_by_video.iter() {
                         if let Some(term) = &find {
                             if video.video_title.contains(term) {
-                                println!("{}: {}", video.video_id, video.video_title.blue());
+                                if let Some(date) = video.broadcast_date {
+                                    println!(
+                                        "{}: {} ({})",
+                                        video.video_id,
+                                        video.video_title.blue(),
+                                        date
+                                    );
+                                } else {
+                                    println!("{}: {}", video.video_id, video.video_title.blue());
+                                }
                             } else {
                                 continue;
                             }
+                        } else if let Some(date) = video.broadcast_date {
+                            println!(
+                                "{}: {} ({})",
+                                video.video_id,
+                                video.video_title.blue(),
+                                date
+                            );
                         } else {
                             println!("{}: {}", video.video_id, video.video_title.blue());
                         }
