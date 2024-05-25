@@ -249,7 +249,11 @@ enum NistTapesSubcommands {
     ///
     /// By default, the duplicate tapes will be filtered.
     #[clap(name = "ls")]
-    Ls {},
+    Ls {
+        /// Simple contains-based search that will filter records that don't match the search term.
+        #[arg(long, value_name = "TERM")]
+        find: Option<String>,
+    },
     /// Print a full tape record.
     #[clap(name = "print")]
     Print {
@@ -844,10 +848,19 @@ async fn main() -> Result<()> {
                     updated.print();
                     Ok(())
                 }
-                NistTapesSubcommands::Ls {} => {
+                NistTapesSubcommands::Ls { find } => {
                     let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
                     for (video, tapes) in tapes_grouped_by_video.iter() {
-                        println!("{}: {}", video.video_id, video.video_title.blue(),);
+                        if let Some(term) = &find {
+                            if video.video_title.contains(term) {
+                                println!("{}: {}", video.video_id, video.video_title.blue());
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            println!("{}: {}", video.video_id, video.video_title.blue());
+                        }
+
                         for tape in tapes.iter() {
                             let mut s = String::new();
                             s.push_str(&format!("  {}: ", tape.tape_id));
@@ -869,11 +882,21 @@ async fn main() -> Result<()> {
                                 s.push_str(&format!(" {}", "T".to_string().blue()));
                             }
 
-                            println!("{}", s);
-
-                            if let Some(nist_refs) = tape.release_ref()? {
-                                for nist_ref in nist_refs {
-                                    println!("    {}", nist_ref.green());
+                            if let Some(term) = &find {
+                                if s.contains(term) {
+                                    println!("{}", s);
+                                    if let Some(nist_refs) = tape.release_ref()? {
+                                        for nist_ref in nist_refs {
+                                            println!("    {}", nist_ref.green());
+                                        }
+                                    }
+                                }
+                            } else {
+                                println!("{}", s);
+                                if let Some(nist_refs) = tape.release_ref()? {
+                                    for nist_ref in nist_refs {
+                                        println!("    {}", nist_ref.green());
+                                    }
                                 }
                             }
                         }
