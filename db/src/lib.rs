@@ -15,7 +15,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::Postgres;
 use std::{
     collections::{BTreeMap, HashMap},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 pub async fn establish_connection() -> Result<Pool<Postgres>> {
@@ -772,7 +772,7 @@ pub async fn get_people() -> Result<Vec<Person>> {
 /// ***********************
 /// Insert-based queries
 /// ***********************
-pub async fn import_nist_videos_table_from_csv(csv_path: PathBuf) -> Result<()> {
+pub async fn import_nist_videos_table_from_csv(csv_path: &Path) -> Result<()> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
 
@@ -809,7 +809,7 @@ pub async fn import_nist_videos_table_from_csv(csv_path: PathBuf) -> Result<()> 
     Ok(())
 }
 
-pub async fn import_nist_tapes_table_from_csv(csv_path: PathBuf) -> Result<()> {
+pub async fn import_nist_tapes_table_from_csv(csv_path: &Path) -> Result<()> {
     let pool = establish_connection().await?;
     let mut tx = pool.begin().await?;
 

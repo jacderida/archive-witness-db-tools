@@ -11,7 +11,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::{AsyncWriteExt, BufWriter};
 use url::Url;
 
-pub async fn download_torrents(target_path: &PathBuf) -> Result<()> {
+pub async fn download_torrents(target_path: &Path) -> Result<()> {
     println!(
         "Saving torrents to directory at {}",
         target_path.to_string_lossy()
@@ -58,7 +58,7 @@ pub async fn download_torrents(target_path: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-pub async fn init_releases(torrents_path: PathBuf) -> Result<()> {
+pub async fn init_releases(torrents_path: &Path) -> Result<()> {
     for item in RELEASE_DATA.iter() {
         let date = item.0.to_string();
         let torrent_url = item.1.to_string();
@@ -200,14 +200,6 @@ pub async fn list_release_range_extensions(
     Ok(())
 }
 
-pub async fn list_releases() -> Result<()> {
-    let releases = db::get_releases().await?;
-    for release in releases.iter() {
-        println!("{}: {}", release.id, release.name);
-    }
-    Ok(())
-}
-
 pub async fn list_release_extensions(release_id: i32) -> Result<()> {
     let extensions = get_release_extensions(release_id).await?;
     if let Some(extensions) = extensions {
@@ -223,7 +215,7 @@ pub async fn list_release_extensions(release_id: i32) -> Result<()> {
 pub async fn export_video_list(
     start_release_id: i32,
     end_release_id: i32,
-    out_path: &PathBuf,
+    out_path: &Path,
 ) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
     writer.write_record(["master video id", "release name", "file path", "file size"])?;
@@ -249,7 +241,7 @@ pub async fn export_video_list(
     Ok(())
 }
 
-pub async fn export_master_videos(out_path: &PathBuf) -> Result<()> {
+pub async fn export_master_videos(out_path: &Path) -> Result<()> {
     let mut writer = Writer::from_writer(std::fs::File::create(out_path)?);
     writer.write_record(["id", "title", "date", "description"])?;
 
