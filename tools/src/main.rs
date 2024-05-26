@@ -255,6 +255,11 @@ enum NistTapesSubcommands {
         /// Simple contains-based search that will filter records that don't match the search term.
         #[arg(long, value_name = "TERM")]
         find: Option<String>,
+        /// Set to filter out tapes that have release files associated with them.
+        ///
+        /// The remaining list will be tapes that still need to be located.
+        #[arg(long)]
+        filter_found: bool,
     },
     /// Print a full tape record.
     #[clap(name = "print")]
@@ -885,9 +890,15 @@ async fn main() -> Result<()> {
                     updated.print();
                     Ok(())
                 }
-                NistTapesSubcommands::Ls { find } => {
+                NistTapesSubcommands::Ls { find, filter_found } => {
                     let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
                     for (video, tapes) in tapes_grouped_by_video.iter() {
+                        if filter_found {
+                            if tapes.iter().any(|t| !t.release_files.is_empty()) {
+                                continue;
+                            }
+                        }
+
                         if let Some(term) = &find {
                             if video.video_title.contains(term) {
                                 if let Some(date) = video.broadcast_date {
