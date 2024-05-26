@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.3.3 - 2024-05-26
+
+* tools 1.3.3
+
+### 🚀 Features
+
+- Provide `--filter-found` arg for `nist tapes ls` cmd
+
+
 ## 1.3.2 - 2024-05-25
+
+* tools 1.3.2
 
 ### 🚀 Features
 
