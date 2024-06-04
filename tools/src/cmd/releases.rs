@@ -43,9 +43,12 @@ pub async fn files_ls_extensions(
     release_id: Option<u32>,
     start_release_id: Option<u32>,
     end_release_id: Option<u32>,
+    sum: bool,
 ) -> Result<()> {
     if let (Some(start), Some(end)) = (start_release_id, end_release_id) {
-        crate::releases::list_release_range_extensions(start as i32, end as i32).await?;
+        if sum {
+            crate::releases::list_release_range_extensions(start as i32, end as i32).await?;
+        }
     } else if let Some(release_id) = release_id {
         crate::releases::list_release_extensions(release_id as i32).await?;
     } else {

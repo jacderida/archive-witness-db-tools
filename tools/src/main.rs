@@ -321,6 +321,9 @@ enum ReleasesFilesSubcommands {
     /// The command can work with an individual, a range, or all releases.
     #[clap(name = "ls-extensions")]
     LsExtensions {
+        /// The end release ID of the range.
+        #[arg(long)]
+        end_id: Option<u32>,
         /// The ID of the release.
         ///
         /// If no ID is supplied, extensions for all releases will be listed.
@@ -329,9 +332,11 @@ enum ReleasesFilesSubcommands {
         /// The starting release ID of the range.
         #[arg(long)]
         start_id: Option<u32>,
-        /// The end release ID of the range.
+        /// If a range is being used, set this flag to sum the counts over the range.
+        ///
+        /// If not used, the range will specify the file extensions individually
         #[arg(long)]
-        end_id: Option<u32>,
+        sum: bool,
     },
 }
 
@@ -483,9 +488,10 @@ async fn main() -> Result<()> {
                 ReleasesFilesSubcommands::Ls { id } => cmd::releases::files_ls(id).await,
                 ReleasesFilesSubcommands::LsExtensions {
                     id,
-                    start_id,
                     end_id,
-                } => cmd::releases::files_ls_extensions(id, start_id, end_id).await,
+                    start_id,
+                    sum,
+                } => cmd::releases::files_ls_extensions(id, start_id, end_id, sum).await,
             },
             ReleasesSubcommands::Find { term } => cmd::releases::find(&term).await,
             ReleasesSubcommands::Init { torrent_path } => cmd::releases::init(&torrent_path).await,
