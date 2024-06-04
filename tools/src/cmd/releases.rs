@@ -1,4 +1,4 @@
-use color_eyre::Result;
+use color_eyre::{eyre::eyre, Result};
 use std::path::Path;
 
 pub async fn download_torrents(path: &Path) -> Result<()> {
@@ -48,19 +48,38 @@ pub async fn files_ls_extensions(
     if let (Some(start), Some(end)) = (start_release_id, end_release_id) {
         if sum {
             crate::releases::list_release_range_extensions(start as i32, end as i32).await?;
+        } else {
+            let releases = db::get_releases().await?;
+            for id in start..=end {
+                let name = releases
+                    .iter()
+                    .find(|r| r.id == id as i32)
+                    .map(|r| r.name.clone())
+                    .ok_or_else(|| eyre!("Could not find release with ID {id}"))?;
+                print_banner(&format!("{}: {}", id, &name));
+                crate::releases::list_release_extensions(id as i32).await?;
+            }
         }
     } else if let Some(release_id) = release_id {
         crate::releases::list_release_extensions(release_id as i32).await?;
     } else {
         let releases = db::get_releases().await?;
         for release in releases.iter() {
-            let banner = "=".repeat(release.name.len());
-            println!("{}", banner);
-            println!("{}", release.name);
-            println!("{}", banner);
+            print_banner(&format!("{}: {}", release.id, &release.name));
             crate::releases::list_release_extensions(release.id).await?;
-            println!();
         }
     }
     Ok(())
+}
+
+fn print_banner(text: &str) {
+    let padding = 2;
+    let text_width = text.len() + padding * 2;
+    let border_chars = 2;
+    let total_width = text_width + border_chars;
+    let top_bottom = "═".repeat(total_width);
+
+    println!("╔{}╗", top_bottom);
+    println!("║ {:^width$} ║", text, width = text_width);
+    println!("╚{}╝", top_bottom);
 }
