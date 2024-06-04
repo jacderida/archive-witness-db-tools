@@ -302,23 +302,6 @@ enum ReleasesSubcommands {
     /// List all releases
     #[clap(name = "ls")]
     Ls {},
-    /// List all the file extensions in a release.
-    ///
-    /// The command can work with an individual, a range, or all releases.
-    #[clap(name = "ls-extensions")]
-    LsExtensions {
-        /// The ID of the release.
-        ///
-        /// If no ID is supplied, extensions for all releases will be listed.
-        #[arg(long)]
-        release_id: Option<u32>,
-        /// The starting release ID of the range.
-        #[arg(long)]
-        start_release_id: Option<u32>,
-        /// The end release ID of the range.
-        #[arg(long)]
-        end_release_id: Option<u32>,
-    },
 }
 
 /// Manage videos from NIST's database.
@@ -330,6 +313,23 @@ enum ReleasesFilesSubcommands {
         /// The ID of the release.
         #[arg(long)]
         id: u32,
+    },
+    /// List all the file extensions in a release.
+    ///
+    /// The command can work with an individual, a range, or all releases.
+    #[clap(name = "ls-extensions")]
+    LsExtensions {
+        /// The ID of the release.
+        ///
+        /// If no ID is supplied, extensions for all releases will be listed.
+        #[arg(long)]
+        id: Option<u32>,
+        /// The starting release ID of the range.
+        #[arg(long)]
+        start_id: Option<u32>,
+        /// The end release ID of the range.
+        #[arg(long)]
+        end_id: Option<u32>,
     },
 }
 
@@ -479,15 +479,15 @@ async fn main() -> Result<()> {
             }
             ReleasesSubcommands::Files(files_command) => match files_command {
                 ReleasesFilesSubcommands::Ls { id } => cmd::releases::files_ls(id).await,
+                ReleasesFilesSubcommands::LsExtensions {
+                    id,
+                    start_id,
+                    end_id,
+                } => cmd::releases::files_ls_extensions(id, start_id, end_id).await,
             },
             ReleasesSubcommands::Find { term } => cmd::releases::find(&term).await,
             ReleasesSubcommands::Init { torrent_path } => cmd::releases::init(&torrent_path).await,
             ReleasesSubcommands::Ls {} => cmd::releases::ls().await,
-            ReleasesSubcommands::LsExtensions {
-                release_id,
-                start_release_id,
-                end_release_id,
-            } => cmd::releases::ls_extensions(release_id, start_release_id, end_release_id).await,
         },
         Commands::Videos(videos_command) => match videos_command {
             VideosSubcommands::Add {

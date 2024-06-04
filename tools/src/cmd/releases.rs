@@ -31,7 +31,15 @@ pub async fn ls() -> Result<()> {
     Ok(())
 }
 
-pub async fn ls_extensions(
+pub async fn files_ls(id: u32) -> Result<()> {
+    let release = db::get_release(id as i32).await?;
+    for file in release.files.iter() {
+        println!("{}", file.path.to_string_lossy());
+    }
+    Ok(())
+}
+
+pub async fn files_ls_extensions(
     release_id: Option<u32>,
     start_release_id: Option<u32>,
     end_release_id: Option<u32>,
@@ -50,14 +58,6 @@ pub async fn ls_extensions(
             crate::releases::list_release_extensions(release.id).await?;
             println!();
         }
-    }
-    Ok(())
-}
-
-pub async fn files_ls(id: u32) -> Result<()> {
-    let release = db::get_release(id as i32).await?;
-    for file in release.files.iter() {
-        println!("{}", file.path.to_string_lossy());
     }
     Ok(())
 }
