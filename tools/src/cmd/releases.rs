@@ -1,5 +1,12 @@
+use crate::static_data::VideoReleaseType;
 use color_eyre::{eyre::eyre, Result};
-use std::path::Path;
+use colored::Colorize;
+use db::models::{NistTape, Release};
+use std::{
+    collections::HashSet,
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 pub async fn download_torrents(path: &Path) -> Result<()> {
     crate::releases::download_torrents(path).await?;
@@ -72,6 +79,85 @@ pub async fn files_ls_extensions(
     Ok(())
 }
 
+pub async fn report_nist_videos_allocated() -> Result<()> {
+    let tapes = db::get_nist_tapes().await?; // Get the release list *without* any files.
+    let releases = db::get_releases().await?;
+    let mut total_found = 0;
+    let mut total_processed = 0;
+
+    for (name, release_type) in crate::static_data::VIDEO_RELEASES.iter() {
+        let id = releases
+            .iter()
+            .find(|r| r.name == *name)
+            .map(|r| r.id)
+            .ok_or_else(|| eyre!("Could not find release with name {name}"))?;
+        let release = db::get_release(id).await?; // Get the full release *with* files.
+
+        print_banner(&format!("{}: {}", release.id, &release.name));
+        match release_type {
+            VideoReleaseType::Dvd => {
+                print_dvds(
+                    &release,
+                    &tapes,
+                    &[],
+                    &mut total_found,
+                    &mut total_processed,
+                );
+            }
+            VideoReleaseType::Files => {
+                for file in release.files.iter().map(|f| &f.path) {
+                    if !is_video_file(file) {
+                        continue;
+                    }
+
+                    total_processed += 1;
+                    // Find any tapes whose files contain `file`.
+                    let found_tapes = tapes
+                        .iter()
+                        .filter(|t| {
+                            t.release_files.iter().any(|f| {
+                                let path = &f.0;
+                                file == path
+                            })
+                        })
+                        .collect::<Vec<&NistTape>>();
+                    let file_name = file
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .ok_or_else(|| eyre!("Could not obtain file name"))?;
+                    if found_tapes.is_empty() {
+                        println!("{}: video not yet allocated", file_name);
+                    } else {
+                        total_found += 1;
+                        // Each tape will be related to the same video.
+                        let msg = format!(
+                            "{}: {} [{}]",
+                            file_name,
+                            found_tapes[0].video.video_title,
+                            found_tapes[0].video.video_id
+                        );
+                        println!("{}", msg.green());
+                    }
+                }
+            }
+            VideoReleaseType::DvdAndMisc(exclusions) => {
+                print_dvds(
+                    &release,
+                    &tapes,
+                    exclusions,
+                    &mut total_found,
+                    &mut total_processed,
+                );
+            }
+        }
+    }
+
+    print_banner("Summary");
+    println!("Videos allocated: {}", total_found);
+    println!("Total release files/dirs: {}", total_processed);
+    Ok(())
+}
+
 fn print_banner(text: &str) {
     let padding = 2;
     let text_width = text.len() + padding * 2;
@@ -82,4 +168,73 @@ fn print_banner(text: &str) {
     println!("╔{}╗", top_bottom);
     println!("║ {:^width$} ║", text, width = text_width);
     println!("╚{}╝", top_bottom);
+}
+
+fn print_dvds(
+    release: &Release,
+    tapes: &[NistTape],
+    dirs_to_exclude: &[PathBuf],
+    total_found: &mut usize,
+    total_processed: &mut usize,
+) {
+    let mut dvd_directories = release
+        .files
+        .iter()
+        .filter_map(|file| {
+            file.path
+                .iter()
+                .nth(3)
+                .map(|component| component.to_string_lossy().into_owned())
+        })
+        .collect::<HashSet<String>>();
+    let mut dvd_directories: Vec<String> = dvd_directories.drain().collect();
+    dvd_directories.sort();
+
+    for dir in dvd_directories.iter() {
+        if dirs_to_exclude
+            .iter()
+            .any(|d| d.to_string_lossy().to_string().contains(dir))
+        {
+            continue;
+        }
+
+        *total_processed += 1;
+        // Find tapes whose files contain `dir` in their path.
+        let found_tapes = tapes
+            .iter()
+            .flat_map(|t| {
+                t.release_files.iter().filter_map(move |f| {
+                    let path = &f.0;
+                    let path = path.to_string_lossy().to_string();
+                    if path.contains(dir) {
+                        Some(t)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect::<Vec<&NistTape>>();
+        if found_tapes.is_empty() {
+            println!("{}: video not yet allocated", dir);
+        } else {
+            *total_found += 1;
+            // Each tape will be related to the same video.
+            let msg = format!(
+                "{}: {} [{}]",
+                dir, found_tapes[0].video.video_title, found_tapes[0].video.video_id
+            );
+            println!("{}", msg.green());
+        }
+    }
+}
+
+fn is_video_file(path: &Path) -> bool {
+    if let Some(extension) = path.extension().and_then(OsStr::to_str) {
+        let lower_ext = extension.to_lowercase();
+        return matches!(
+            lower_ext.as_str(),
+            "mp4" | "mkv" | "mov" | "avi" | "wmv" | "flv" | "webm" | "mpeg" | "mpg" | "m4v"
+        );
+    }
+    false
 }

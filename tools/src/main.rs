@@ -304,6 +304,9 @@ enum ReleasesSubcommands {
     /// List all releases
     #[clap(name = "ls")]
     Ls {},
+    /// Print reports for releases.
+    #[clap(subcommand)]
+    Reports(ReleasesReportsSubcommands),
 }
 
 /// Manage videos from NIST's database.
@@ -338,6 +341,15 @@ enum ReleasesFilesSubcommands {
         #[arg(long)]
         sum: bool,
     },
+}
+
+/// Print reports for releases
+#[derive(Subcommand, Debug)]
+enum ReleasesReportsSubcommands {
+    /// Print a report showing the release files that have been allocated to videos from NIST's
+    /// access database.
+    #[clap(name = "nist-videos-allocated")]
+    NistVideosAllocated {},
 }
 
 /// Manage videos
@@ -496,6 +508,11 @@ async fn main() -> Result<()> {
             ReleasesSubcommands::Find { term } => cmd::releases::find(&term).await,
             ReleasesSubcommands::Init { torrent_path } => cmd::releases::init(&torrent_path).await,
             ReleasesSubcommands::Ls {} => cmd::releases::ls().await,
+            ReleasesSubcommands::Reports(reports_command) => match reports_command {
+                ReleasesReportsSubcommands::NistVideosAllocated {} => {
+                    cmd::releases::report_nist_videos_allocated().await
+                }
+            },
         },
         Commands::Videos(videos_command) => match videos_command {
             VideosSubcommands::Add {

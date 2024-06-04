@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use maplit::hashmap;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 lazy_static! {
     pub static ref FIELD_NAME_TYPE_MAP: HashMap<&'static str, &'static str> = hashmap! {
@@ -979,4 +979,95 @@ lazy_static! {
             "https://archive.org/download/911datasets/WTC1_Architectural_and_Engineering_Drawings_Released_May_27_2009.zip",
         ),
     ];
+    /// Represents a list of the video-based releases in the 09-42 series of releases.
+    ///
+    /// It is going to be used to produce reports related to these releases. There's not really
+    /// much way to identify them from others, so they are done so here in this list.
+    ///
+    /// The boolean flag is to indicate whether we should consider individual files in the release,
+    /// as opposed to directories which have multiple files but represent one tape/video.
+    pub static ref VIDEO_RELEASES: Vec<(&'static str, VideoReleaseType)> = vec![
+        ("NIST FOIA 09-42 - ic911studies.org - Release 10", VideoReleaseType::Files),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 19", VideoReleaseType::Files),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 20", VideoReleaseType::Dvd),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 21", VideoReleaseType::Dvd),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 25", VideoReleaseType::Dvd),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 27", VideoReleaseType::Dvd),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 28", VideoReleaseType::DvdAndMisc(
+            vec![
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0296 - G28D1"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0297 - G28D2"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0301 - G28D6"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0306 - G28D11"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0307 - G28D12"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0308 - G28D13"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0309 - G28D14"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0310 - G28D15"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0311 - G28D16"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0312 - G28D17"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0313 - G28D18"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_28/Release 28/42A0314 - G28D19"),
+            ]
+        )),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 29", VideoReleaseType::DvdAndMisc(
+            vec![
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0316 - G29D2"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0318 - G29D4"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0325 - G29D11"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0328 - G29D14"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0331 - G29D17"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0322 - G29D8"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0324 - G29D10"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0329 - G29D15"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0315 - G29D1"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0330 - G29D16"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0339 - G29D25"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0317 - G29D3"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0318 - G29D4"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0325 - G29D11"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0326 - G29D12"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0327 - G29D13"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0328 - G29D14"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0322 - G29D8"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0324 - G29D10"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0318 - G29D4"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0319 - G29D5"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0320 - G29D6"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0323 - G29D9"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0325 - G29D11"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_29/Release 29/42A0324 - G29D10"),
+            ]
+        )),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 30", VideoReleaseType::Dvd),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 37", VideoReleaseType::DvdAndMisc(
+            vec![
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0528 - G38D7"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0525 - G38D4"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0528 - G38D7"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0530 - G38D9"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0531 - G38D10"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0532 - G38D11"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0522 - G38D1"),
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_37/Release 37/42A0526 - G38D5"),
+            ]
+        )),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 38", VideoReleaseType::DvdAndMisc(
+            vec![
+                PathBuf::from("International_Center_for_911_Studies_NIST_FOIA/Release_38/Release 38/42A0536 - G38D15"),
+            ]
+        )),
+        ("NIST FOIA 09-42 - ic911studies.org - Release 42", VideoReleaseType::Dvd),
+    ];
+}
+
+pub enum VideoReleaseType {
+    /// The release consists only of videos in the form of DVD backups, which are directories with
+    /// VOB files.
+    Dvd,
+    /// The release mainly consists of DVD backups, but it also has other directories with other
+    /// files, which should be ignored. The directories to be ignored are listed.
+    DvdAndMisc(Vec<PathBuf>),
+    /// The release has videos as individual files. When processing these releases for a report,
+    /// any files that do not have a video extension should be ignored.
+    Files,
 }
