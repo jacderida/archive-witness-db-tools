@@ -77,7 +77,11 @@ pub async fn ls(find: Option<String>, filter_found: bool) -> Result<()> {
         }
 
         if let Some(term) = &find {
-            if video.video_title.contains(term) {
+            if video
+                .video_title
+                .to_lowercase()
+                .contains(&term.to_lowercase())
+            {
                 if let Some(date) = video.broadcast_date {
                     println!(
                         "{}: {} ({})",

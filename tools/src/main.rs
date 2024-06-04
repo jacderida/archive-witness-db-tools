@@ -242,6 +242,8 @@ enum NistTapesSubcommands {
     #[clap(name = "ls")]
     Ls {
         /// Simple contains-based search that will filter records that don't match the search term.
+        ///
+        /// The search is case insensitive.
         #[arg(long, value_name = "TERM")]
         find: Option<String>,
         /// Set to filter out tapes that have release files associated with them.
