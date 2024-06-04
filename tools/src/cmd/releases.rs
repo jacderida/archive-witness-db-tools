@@ -54,7 +54,7 @@ pub async fn ls_extensions(
     Ok(())
 }
 
-pub async fn ls_files(id: u32) -> Result<()> {
+pub async fn files_ls(id: u32) -> Result<()> {
     let release = db::get_release(id as i32).await?;
     for file in release.files.iter() {
         println!("{}", file.path.to_string_lossy());

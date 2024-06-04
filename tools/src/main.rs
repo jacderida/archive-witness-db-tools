@@ -281,6 +281,9 @@ enum ReleasesSubcommands {
         #[arg(long)]
         path: PathBuf,
     },
+    /// Manage files for the release
+    #[clap(subcommand)]
+    Files(ReleasesFilesSubcommands),
     /// Find any files that contain references to a search string.
     ///
     /// For example, you might be looking for files with the term "42A0293 - G27D23" in their path.
@@ -316,9 +319,14 @@ enum ReleasesSubcommands {
         #[arg(long)]
         end_release_id: Option<u32>,
     },
-    /// List all the files in a release.
-    #[clap(name = "ls-files")]
-    LsFiles {
+}
+
+/// Manage videos from NIST's database.
+#[derive(Subcommand, Debug)]
+enum ReleasesFilesSubcommands {
+    /// List the files for the release.
+    #[clap(name = "ls")]
+    Ls {
         /// The ID of the release.
         #[arg(long)]
         id: u32,
@@ -469,6 +477,9 @@ async fn main() -> Result<()> {
             ReleasesSubcommands::DownloadTorrents { path } => {
                 cmd::releases::download_torrents(&path).await
             }
+            ReleasesSubcommands::Files(files_command) => match files_command {
+                ReleasesFilesSubcommands::Ls { id } => cmd::releases::files_ls(id).await,
+            },
             ReleasesSubcommands::Find { term } => cmd::releases::find(&term).await,
             ReleasesSubcommands::Init { torrent_path } => cmd::releases::init(&torrent_path).await,
             ReleasesSubcommands::Ls {} => cmd::releases::ls().await,
@@ -477,7 +488,6 @@ async fn main() -> Result<()> {
                 start_release_id,
                 end_release_id,
             } => cmd::releases::ls_extensions(release_id, start_release_id, end_release_id).await,
-            ReleasesSubcommands::LsFiles { id } => cmd::releases::ls_files(id).await,
         },
         Commands::Videos(videos_command) => match videos_command {
             VideosSubcommands::Add {
