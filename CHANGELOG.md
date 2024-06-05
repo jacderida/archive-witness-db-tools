@@ -2,7 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-## 1.3.3 - 2024-05-26
+## [1.4.0] - 2024-06-05
+
+* db 1.0.4
+* tools 1.3.3
+
+### 🚀 Features
+
+- [**breaking**] Move `releases files-ls` cmd to `releases files ls`
+- [**breaking**] Move `releases ls-extensions` cmd to `releases files ls-extensions`
+- [**breaking**] Make `tapes ls --find` case insensitive
+- [**breaking**] Provide `--sum` arg on `releases ls-extensions` cmd
+- `release ls-extensions` lists per-release for range
+- Provide `releases reports nist-videos-allocated` cmd
+
+### 🚜 Refactor
+
+- Use `cmd` module to organise command processing
+
+## [1.3.3] - 2024-05-26
 
 * tools 1.3.3
 
@@ -10,8 +28,7 @@ All notable changes to this project will be documented in this file.
 
 - Provide `--filter-found` arg for `nist tapes ls` cmd
 
-
-## 1.3.2 - 2024-05-25
+## [1.3.2] - 2024-05-25
 
 * tools 1.3.2
 
@@ -19,7 +36,7 @@ All notable changes to this project will be documented in this file.
 
 - `nist tapes edit` cmd prompts for confirmation
 
-## 1.3.1 - 2024-05-25
+## [1.3.1] - 2024-05-25
 
 * tools 1.3.1
 
@@ -27,7 +44,7 @@ All notable changes to this project will be documented in this file.
 
 - `nist tapes ls` cmd includes broadcast date
 
-## 1.3.0 - 2024-05-25
+## [1.3.0] - 2024-05-25
 
 * tools 1.3.0
 * db 1.0.3
@@ -38,7 +55,7 @@ All notable changes to this project will be documented in this file.
 - Provide `--find` arg for `nist tapes ls` cmd
 - `nist tapes edit` can select tape with fuzzy find
 
-## 1.2.0 - 2024-05-23
+## [1.2.0] - 2024-05-23
 
 * tools 1.2.0
 * db 1.0.2
@@ -58,7 +75,7 @@ All notable changes to this project will be documented in this file.
 
 - Change incorrect description on `nist tapes` subcommand
 
-## 1.1.0 - 2024-05-21
+## [1.1.0] - 2024-05-21
 
 * tools 1.1.0
 * db 1.0.1
@@ -84,13 +101,13 @@ All notable changes to this project will be documented in this file.
 
 - Move `access-db` cmd to `nist import` cmd
 
-## 1.0.1 - 2024-05-20
+## [1.0.1] - 2024-05-20
 
 ### 🐛 Bug Fixes
 
 - Update incorrect torrent url
 
-## 1.0.0 - 2024-05-20
+## [1.0.0] - 2024-05-20
 
 ### 🚀 Features
 
