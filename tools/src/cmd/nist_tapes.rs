@@ -128,7 +128,7 @@ pub async fn ls(find: Option<String>, filter_found: bool) -> Result<()> {
             }
 
             if let Some(term) = &find {
-                if s.contains(term) {
+                if s.to_lowercase().contains(&term.to_lowercase()) {
                     println!("{}", s);
                     if let Some(nist_refs) = tape.release_ref()? {
                         for nist_ref in nist_refs {
