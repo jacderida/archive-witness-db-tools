@@ -2,10 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2024-06-06
+
+* tools 1.4.1
+
+### 🐛 Bug Fixes
+
+- `nist tapes ls --find` to use lowercase for tape records
+
 ## [1.4.0] - 2024-06-05
 
 * db 1.0.4
-* tools 1.3.3
+* tools 1.4.0
 
 ### 🚀 Features
 
