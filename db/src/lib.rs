@@ -381,7 +381,13 @@ pub async fn get_nist_videos() -> Result<Vec<NistVideo>> {
     let pool = establish_connection().await?;
     let videos = sqlx::query_as!(
         NistVideo,
-        "SELECT video_id, video_title, network, broadcast_date, duration_min, subject, notes FROM nist_videos"
+        r#"
+            SELECT
+                video_id, video_title, network,
+                broadcast_date, duration_min, subject,
+                notes, is_missing, additional_notes
+            FROM nist_videos
+        "#
     )
     .fetch_all(&pool)
     .await?;
@@ -1322,6 +1328,35 @@ pub async fn save_nist_tape_files(tape_id: i32, files: Vec<(PathBuf, u64)>) -> R
         .into_iter()
         .find(|t| t.tape_id == tape_id)
         .ok_or_else(|| Error::NistTapeNotFound(tape_id))
+}
+
+pub async fn save_nist_video(
+    id: i32,
+    is_missing: bool,
+    additional_notes: &str,
+) -> Result<NistVideo> {
+    let pool = establish_connection().await?;
+    let mut tx = pool.begin().await?;
+
+    sqlx::query!(
+        r#"
+            UPDATE nist_videos SET is_missing = $1, additional_notes = $2
+            WHERE video_id = $3
+        "#,
+        is_missing,
+        additional_notes,
+        id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    let updated_tape = get_nist_videos().await?;
+    updated_tape
+        .into_iter()
+        .find(|v| v.video_id == id)
+        .ok_or_else(|| Error::NistVideoNotFound(id))
 }
 
 pub async fn save_torrent(release_id: i32, torrent_path: &PathBuf) -> Result<()> {

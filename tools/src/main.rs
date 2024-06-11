@@ -264,6 +264,13 @@ enum NistTapesSubcommands {
 /// Manage videos from NIST's database.
 #[derive(Subcommand, Debug)]
 enum NistVideosSubcommands {
+    /// Edit a video to mark as missing or add additional notes.
+    #[clap(name = "edit")]
+    Edit {
+        /// The ID of the video.
+        #[arg(long)]
+        id: u32,
+    },
     /// List the videos.
     ///
     /// By default, the duplicate tapes will be filtered.
@@ -489,6 +496,7 @@ async fn main() -> Result<()> {
                 NistTapesSubcommands::Print { id } => cmd::nist_tapes::print(id).await,
             },
             NistSubcommands::Videos(videos_command) => match videos_command {
+                NistVideosSubcommands::Edit { id } => cmd::nist_videos::edit(id).await,
                 NistVideosSubcommands::Ls {} => cmd::nist_videos::ls().await,
             },
         },

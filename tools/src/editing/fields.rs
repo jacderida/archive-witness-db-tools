@@ -138,6 +138,7 @@ impl OptionalMultilineTextField {
             .trim_start_matches(&format!("{name}:"))
             .trim()
             .to_string();
+        println!("{val}");
         Ok(OptionalMultilineTextField::new(name, &val))
     }
 }

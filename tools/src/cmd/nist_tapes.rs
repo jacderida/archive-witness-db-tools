@@ -76,34 +76,30 @@ pub async fn ls(find: Option<String>, filter_found: bool) -> Result<()> {
             continue;
         }
 
+        let mut s = String::new();
+        s.push_str(&format!("{}: {}", video.video_id, video.video_title));
+        if let Some(date) = video.broadcast_date {
+            s.push_str(&format!(" ({})", date));
+        }
+        let c = if video.is_missing {
+            s.push_str(" [MISSING]");
+            s.red()
+        } else {
+            s.blue()
+        };
+
         if let Some(term) = &find {
             if video
                 .video_title
                 .to_lowercase()
                 .contains(&term.to_lowercase())
             {
-                if let Some(date) = video.broadcast_date {
-                    println!(
-                        "{}: {} ({})",
-                        video.video_id,
-                        video.video_title.blue(),
-                        date
-                    );
-                } else {
-                    println!("{}: {}", video.video_id, video.video_title.blue());
-                }
+                println!("{c}");
             } else {
                 continue;
             }
-        } else if let Some(date) = video.broadcast_date {
-            println!(
-                "{}: {} ({})",
-                video.video_id,
-                video.video_title.blue(),
-                date
-            );
         } else {
-            println!("{}: {}", video.video_id, video.video_title.blue());
+            println!("{c}");
         }
 
         for tape in tapes.iter() {
@@ -144,6 +140,10 @@ pub async fn ls(find: Option<String>, filter_found: bool) -> Result<()> {
                     }
                 }
             }
+        }
+
+        if let Some(notes) = &video.additional_notes {
+            println!("* {}", notes.red());
         }
     }
     Ok(())

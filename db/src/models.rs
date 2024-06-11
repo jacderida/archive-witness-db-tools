@@ -212,6 +212,8 @@ pub struct NistVideo {
     pub duration_min: i32,
     pub subject: Option<String>,
     pub notes: Option<String>,
+    pub is_missing: bool,
+    pub additional_notes: Option<String>,
 }
 
 impl PartialEq for NistVideo {
@@ -235,6 +237,40 @@ impl Ord for NistVideo {
 }
 
 impl NistVideo {
+    pub fn print(&self) {
+        println!("ID: {}", self.video_id);
+        println!("---");
+        println!("Name: {}", self.video_title);
+        println!("---");
+        println!(
+            "Network: {}",
+            self.network.as_ref().unwrap_or(&"".to_string())
+        );
+        println!("---");
+        println!(
+            "Date: {}",
+            self.broadcast_date
+                .map_or("".to_string(), |d| d.to_string())
+        );
+        println!("---");
+        println!("Duration: {}m", self.duration_min);
+        println!("---");
+        println!(
+            "Subject: {}",
+            self.subject.as_ref().unwrap_or(&"".to_string())
+        );
+        println!("---");
+        println!("Notes: {}", self.notes.as_ref().unwrap_or(&"".to_string()));
+        println!("---");
+        println!("Is Missing? {}", self.is_missing);
+        println!("---");
+        println!(
+            "Additional Notes: {}",
+            self.additional_notes.as_ref().unwrap_or(&"".to_string())
+        );
+        println!("---");
+    }
+
     pub fn print_row(&self) {
         println!(
             "{}: {} ({}m)",
@@ -279,6 +315,8 @@ impl TryFrom<Vec<String>> for NistVideo {
             duration_min,
             subject,
             notes,
+            is_missing: false,
+            additional_notes: None,
         })
     }
 }

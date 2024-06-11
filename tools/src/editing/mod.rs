@@ -3,6 +3,7 @@ pub mod forms;
 pub mod masters;
 pub mod news;
 pub mod nist_tapes;
+pub mod nist_videos;
 #[cfg(test)]
 pub mod tests;
 pub mod videos;
