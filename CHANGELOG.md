@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2024-06-11
+
+### 🚀 Features
+
+* db 1.0.5
+* tools 1.5.0
+
+- Mark nist videos as missing with notes
+- [**breaking**] Change `--filter-found` to `--not-allocated`
+
 ## [1.4.1] - 2024-06-06
 
 * tools 1.4.1
