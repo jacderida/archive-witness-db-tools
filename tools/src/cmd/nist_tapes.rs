@@ -69,10 +69,10 @@ pub async fn edit(id: Option<u32>) -> Result<()> {
     Ok(())
 }
 
-pub async fn ls(find: Option<String>, filter_found: bool) -> Result<()> {
+pub async fn ls(find: Option<String>, not_allocated: bool) -> Result<()> {
     let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
     for (video, tapes) in tapes_grouped_by_video.iter() {
-        if filter_found && tapes.iter().any(|t| !t.release_files.is_empty()) {
+        if not_allocated && tapes.iter().any(|t| !t.release_files.is_empty()) {
             continue;
         }
 

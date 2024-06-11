@@ -246,11 +246,9 @@ enum NistTapesSubcommands {
         /// The search is case insensitive.
         #[arg(long, value_name = "TERM")]
         find: Option<String>,
-        /// Set to filter out tapes that have release files associated with them.
-        ///
-        /// The remaining list will be tapes that still need to be located.
+        /// Only display entries that have not yet been allocated to release files.
         #[arg(long)]
-        filter_found: bool,
+        not_allocated: bool,
     },
     /// Print a full tape record.
     #[clap(name = "print")]
@@ -490,9 +488,10 @@ async fn main() -> Result<()> {
             },
             NistSubcommands::Tapes(tapes_command) => match tapes_command {
                 NistTapesSubcommands::Edit { id } => cmd::nist_tapes::edit(id).await,
-                NistTapesSubcommands::Ls { find, filter_found } => {
-                    cmd::nist_tapes::ls(find, filter_found).await
-                }
+                NistTapesSubcommands::Ls {
+                    find,
+                    not_allocated,
+                } => cmd::nist_tapes::ls(find, not_allocated).await,
                 NistTapesSubcommands::Print { id } => cmd::nist_tapes::print(id).await,
             },
             NistSubcommands::Videos(videos_command) => match videos_command {
