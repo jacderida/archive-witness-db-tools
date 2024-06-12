@@ -178,8 +178,9 @@ pub async fn ls(
         }
 
         if let Some(notes) = &video.additional_notes {
-            println!("* {}", notes.purple());
+            print_additional_notes(notes);
         }
+        println!("--------------------------------------------------------------");
     }
 
     if find.is_none() && !only_display_unallocated && !exclude_missing {
@@ -196,4 +197,15 @@ pub async fn print(id: u32) -> Result<()> {
         .ok_or_else(|| eyre!("Could not find tape with ID {id}"))?;
     tape.print();
     Ok(())
+}
+
+fn print_additional_notes(notes: &str) {
+    let wrapped_lines = textwrap::wrap(notes, 80);
+    let indent = "  ";
+    if let Some(first_line) = wrapped_lines.first() {
+        println!("* {}", first_line.purple());
+    }
+    for line in wrapped_lines.iter().skip(1) {
+        println!("{}{}", indent, line.purple());
+    }
 }
