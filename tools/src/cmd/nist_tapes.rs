@@ -18,8 +18,11 @@ impl ReportSummary {
         print_banner("Summary");
         println!("Total videos: {}", self.total);
         println!("Allocated videos: {}", self.allocated);
-        println!("Unallocated videos: {}", self.total - self.allocated);
         println!("Missing videos: {}", self.missing);
+        println!(
+            "Unallocated videos: {}",
+            self.total - self.allocated - self.missing
+        );
     }
 }
 
