@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.2] - 2024-06-12
+
+* tools 1.5.2
+
+### 🚀 Features
+
+- Improve styling for `nist tapes ls` report
+
+### 🐛 Bug Fixes
+
+- Unallocated videos count does not include missing in `nist tapes ls`
+
 ## [1.5.1] - 2024-06-12
 
 * db 1.0.6
