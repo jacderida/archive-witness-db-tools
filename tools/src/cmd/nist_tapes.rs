@@ -83,7 +83,7 @@ pub async fn ls(find: Option<String>, not_allocated: bool) -> Result<()> {
         }
         let c = if video.is_missing {
             s.push_str(" [MISSING]");
-            s.red()
+            s.bright_red().bold()
         } else {
             s.blue()
         };
@@ -143,7 +143,7 @@ pub async fn ls(find: Option<String>, not_allocated: bool) -> Result<()> {
         }
 
         if let Some(notes) = &video.additional_notes {
-            println!("* {}", notes.red());
+            println!("* {}", notes.purple());
         }
     }
     Ok(())
