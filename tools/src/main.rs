@@ -241,6 +241,9 @@ enum NistTapesSubcommands {
     /// By default, the duplicate tapes will be filtered.
     #[clap(name = "ls")]
     Ls {
+        /// Exclude missing entries from the list.
+        #[arg(long)]
+        exclude_missing: bool,
         /// Simple contains-based search that will filter records that don't match the search term.
         ///
         /// The search is case insensitive.
@@ -489,9 +492,10 @@ async fn main() -> Result<()> {
             NistSubcommands::Tapes(tapes_command) => match tapes_command {
                 NistTapesSubcommands::Edit { id } => cmd::nist_tapes::edit(id).await,
                 NistTapesSubcommands::Ls {
+                    exclude_missing,
                     find,
                     not_allocated,
-                } => cmd::nist_tapes::ls(find, not_allocated).await,
+                } => cmd::nist_tapes::ls(find, not_allocated, exclude_missing).await,
                 NistTapesSubcommands::Print { id } => cmd::nist_tapes::print(id).await,
             },
             NistSubcommands::Videos(videos_command) => match videos_command {

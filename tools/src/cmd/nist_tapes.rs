@@ -87,7 +87,11 @@ pub async fn edit(id: Option<u32>) -> Result<()> {
     Ok(())
 }
 
-pub async fn ls(find: Option<String>, only_display_unallocated: bool) -> Result<()> {
+pub async fn ls(
+    find: Option<String>,
+    only_display_unallocated: bool,
+    exclude_missing: bool,
+) -> Result<()> {
     let mut summary = ReportSummary::default();
     let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
     summary.total = tapes_grouped_by_video.len();
@@ -98,6 +102,9 @@ pub async fn ls(find: Option<String>, only_display_unallocated: bool) -> Result<
             if only_display_unallocated {
                 continue;
             }
+        }
+        if video.is_missing && exclude_missing {
+            continue;
         }
 
         let mut s = String::new();
@@ -172,7 +179,7 @@ pub async fn ls(find: Option<String>, only_display_unallocated: bool) -> Result<
         }
     }
 
-    if find.is_none() && !only_display_unallocated {
+    if find.is_none() && !only_display_unallocated && !exclude_missing {
         summary.print();
     }
     Ok(())
