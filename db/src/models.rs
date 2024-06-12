@@ -466,14 +466,18 @@ impl NistTape {
                 let matched = caps.get(1).ok_or_else(|| Error::NistRefNotObtained)?;
                 let ref_part1 = format!("R{}", matched.as_str());
 
-                let re = Regex::new(r"^42A\d{4} - G\d{2}D\d{1,}$")?;
+                let default_dir_regex = Regex::new(r"^42A\d{4} - G\d{2}D\d{1,}$")?;
+                let alt_dir_regex = Regex::new(r"^42A\d{4} - G\d{2} D\d{1,}of\d{1,}$")?;
+
                 let ref_part2 = components
                     .nth(1)
                     .ok_or_else(|| Error::NistRefNotObtained)?
                     .as_os_str()
                     .to_string_lossy()
                     .to_string();
-                let ref_to_add = if re.is_match(&ref_part2) {
+                let ref_to_add = if default_dir_regex.is_match(&ref_part2)
+                    || alt_dir_regex.is_match(&ref_part2)
+                {
                     format!("{}: {}", ref_part1, ref_part2)
                 } else {
                     components
