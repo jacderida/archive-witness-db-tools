@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.3] - 2024-06-12
+
+* tools 1.5.3
+
+### 🐛 Bug Fixes
+
+- Correct wrapping on additional notes field on `nist tapes ls` cmd
+
 ## [1.5.2] - 2024-06-12
 
 * tools 1.5.2
