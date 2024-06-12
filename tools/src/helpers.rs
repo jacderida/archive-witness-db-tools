@@ -56,3 +56,15 @@ pub fn human_readable_size(size: u64) -> String {
         format!("{} bytes", size)
     }
 }
+
+pub fn print_banner(text: &str) {
+    let padding = 2;
+    let text_width = text.len() + padding * 2;
+    let border_chars = 2;
+    let total_width = text_width + border_chars;
+    let top_bottom = "═".repeat(total_width);
+
+    println!("╔{}╗", top_bottom);
+    println!("║ {:^width$} ║", text, width = text_width);
+    println!("╚{}╝", top_bottom);
+}

@@ -1,4 +1,4 @@
-use crate::static_data::VideoReleaseType;
+use crate::{helpers::print_banner, static_data::VideoReleaseType};
 use color_eyre::{eyre::eyre, Result};
 use colored::Colorize;
 use db::models::{NistTape, Release};
@@ -156,18 +156,6 @@ pub async fn report_nist_videos_allocated() -> Result<()> {
     println!("Videos allocated: {}", total_found);
     println!("Total release files/dirs: {}", total_processed);
     Ok(())
-}
-
-fn print_banner(text: &str) {
-    let padding = 2;
-    let text_width = text.len() + padding * 2;
-    let border_chars = 2;
-    let total_width = text_width + border_chars;
-    let top_bottom = "═".repeat(total_width);
-
-    println!("╔{}╗", top_bottom);
-    println!("║ {:^width$} ║", text, width = text_width);
-    println!("╚{}╝", top_bottom);
 }
 
 fn print_dvds(

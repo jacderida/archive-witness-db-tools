@@ -1,9 +1,27 @@
-use crate::editing::forms::Form;
+use crate::{editing::forms::Form, helpers::print_banner};
 use color_eyre::{eyre::eyre, Result};
 use colored::Colorize;
 use dialoguer::Editor;
 use skim::prelude::*;
 use std::io::{Cursor, Write};
+
+#[derive(Default)]
+struct ReportSummary {
+    total: usize,
+    allocated: usize,
+    missing: usize,
+}
+
+impl ReportSummary {
+    fn print(&self) {
+        println!();
+        print_banner("Summary");
+        println!("Total videos: {}", self.total);
+        println!("Allocated videos: {}", self.allocated);
+        println!("Unallocated videos: {}", self.total - self.allocated);
+        println!("Missing videos: {}", self.missing);
+    }
+}
 
 pub async fn edit(id: Option<u32>) -> Result<()> {
     let tapes = db::get_nist_tapes().await?;
@@ -69,11 +87,17 @@ pub async fn edit(id: Option<u32>) -> Result<()> {
     Ok(())
 }
 
-pub async fn ls(find: Option<String>, not_allocated: bool) -> Result<()> {
+pub async fn ls(find: Option<String>, only_display_unallocated: bool) -> Result<()> {
+    let mut summary = ReportSummary::default();
     let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
+    summary.total = tapes_grouped_by_video.len();
+
     for (video, tapes) in tapes_grouped_by_video.iter() {
-        if not_allocated && tapes.iter().any(|t| !t.release_files.is_empty()) {
-            continue;
+        if tapes.iter().any(|t| !t.release_files.is_empty()) {
+            summary.allocated += 1;
+            if only_display_unallocated {
+                continue;
+            }
         }
 
         let mut s = String::new();
@@ -82,6 +106,7 @@ pub async fn ls(find: Option<String>, not_allocated: bool) -> Result<()> {
             s.push_str(&format!(" ({})", date));
         }
         let c = if video.is_missing {
+            summary.missing += 1;
             s.push_str(" [MISSING]");
             s.bright_red().bold()
         } else {
@@ -145,6 +170,10 @@ pub async fn ls(find: Option<String>, not_allocated: bool) -> Result<()> {
         if let Some(notes) = &video.additional_notes {
             println!("* {}", notes.purple());
         }
+    }
+
+    if find.is_none() && !only_display_unallocated {
+        summary.print();
     }
     Ok(())
 }
