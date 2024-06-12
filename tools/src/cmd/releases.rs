@@ -79,11 +79,26 @@ pub async fn files_ls_extensions(
     Ok(())
 }
 
+#[derive(Default)]
+struct ReportSummary {
+    total: usize,
+    allocated: usize,
+}
+
+impl ReportSummary {
+    fn print(&self) {
+        println!();
+        print_banner("Summary");
+        println!("Total release files/dirs: {}", self.total);
+        println!("Allocated: {}", self.allocated);
+        println!("Unallocated: {}", self.total - self.allocated);
+    }
+}
+
 pub async fn report_nist_videos_allocated() -> Result<()> {
     let tapes = db::get_nist_tapes().await?; // Get the release list *without* any files.
     let releases = db::get_releases().await?;
-    let mut total_found = 0;
-    let mut total_processed = 0;
+    let mut summary = ReportSummary::default();
 
     for (name, release_type) in crate::static_data::VIDEO_RELEASES.iter() {
         let id = releases
@@ -100,8 +115,8 @@ pub async fn report_nist_videos_allocated() -> Result<()> {
                     &release,
                     &tapes,
                     &[],
-                    &mut total_found,
-                    &mut total_processed,
+                    &mut summary.allocated,
+                    &mut summary.total,
                 );
             }
             VideoReleaseType::Files => {
@@ -110,7 +125,7 @@ pub async fn report_nist_videos_allocated() -> Result<()> {
                         continue;
                     }
 
-                    total_processed += 1;
+                    summary.total += 1;
                     // Find any tapes whose files contain `file`.
                     let found_tapes = tapes
                         .iter()
@@ -128,7 +143,7 @@ pub async fn report_nist_videos_allocated() -> Result<()> {
                     if found_tapes.is_empty() {
                         println!("{}: video not yet allocated", file_name);
                     } else {
-                        total_found += 1;
+                        summary.allocated += 1;
                         // Each tape will be related to the same video.
                         let msg = format!(
                             "{}: {} [{}]",
@@ -145,16 +160,15 @@ pub async fn report_nist_videos_allocated() -> Result<()> {
                     &release,
                     &tapes,
                     exclusions,
-                    &mut total_found,
-                    &mut total_processed,
+                    &mut summary.allocated,
+                    &mut summary.total,
                 );
             }
         }
     }
 
-    print_banner("Summary");
-    println!("Videos allocated: {}", total_found);
-    println!("Total release files/dirs: {}", total_processed);
+    summary.print();
+
     Ok(())
 }
 
