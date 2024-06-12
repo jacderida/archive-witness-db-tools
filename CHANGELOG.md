@@ -2,12 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5.0] - 2024-06-11
+## [1.5.1] - 2024-06-12
+
+* db 1.0.6
+* tools 1.5.1
 
 ### 🚀 Features
 
+- Refine style for missing records in `nist tapes ls`
+- Print summary on `nist tapes ls`
+- Provide `--exclude-missing` for `nist tapes ls` cmd
+- Align summaries for `nist tapes ls` and `releases reports nist-allocated-videos`
+
+### 🐛 Bug Fixes
+
+- `nist tapes ls` uses alt regex for allocated dirs
+
+## [1.5.0] - 2024-06-11
+
 * db 1.0.5
 * tools 1.5.0
+
+### 🚀 Features
 
 - Mark nist videos as missing with notes
 - [**breaking**] Change `--filter-found` to `--not-allocated`
