@@ -252,6 +252,11 @@ enum NistTapesSubcommands {
         /// Only display entries that have not yet been allocated to release files.
         #[arg(long)]
         not_allocated: bool,
+        /// The wrap length for the additional notes field.
+        ///
+        /// Default is 100.
+        #[arg(long)]
+        wrap_length: Option<usize>,
     },
     /// Print a full tape record.
     #[clap(name = "print")]
@@ -495,7 +500,8 @@ async fn main() -> Result<()> {
                     exclude_missing,
                     find,
                     not_allocated,
-                } => cmd::nist_tapes::ls(find, not_allocated, exclude_missing).await,
+                    wrap_length,
+                } => cmd::nist_tapes::ls(find, not_allocated, exclude_missing, wrap_length).await,
                 NistTapesSubcommands::Print { id } => cmd::nist_tapes::print(id).await,
             },
             NistSubcommands::Videos(videos_command) => match videos_command {

@@ -94,6 +94,7 @@ pub async fn ls(
     find: Option<String>,
     only_display_unallocated: bool,
     exclude_missing: bool,
+    wrap_length: Option<usize>,
 ) -> Result<()> {
     let mut summary = ReportSummary::default();
     let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
@@ -178,7 +179,7 @@ pub async fn ls(
         }
 
         if let Some(notes) = &video.additional_notes {
-            print_additional_notes(notes);
+            print_additional_notes(notes, wrap_length);
         }
         println!("--------------------------------------------------------------");
     }
@@ -199,8 +200,9 @@ pub async fn print(id: u32) -> Result<()> {
     Ok(())
 }
 
-fn print_additional_notes(notes: &str) {
-    let wrapped_lines = textwrap::wrap(notes, 80);
+fn print_additional_notes(notes: &str, wrap_length: Option<usize>) {
+    let sanitized_notes = notes.replace('\n', " ");
+    let wrapped_lines = textwrap::wrap(&sanitized_notes, wrap_length.unwrap_or(100));
     let indent = "  ";
     if let Some(first_line) = wrapped_lines.first() {
         println!("* {}", first_line.purple());
