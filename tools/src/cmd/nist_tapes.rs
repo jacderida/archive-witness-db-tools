@@ -95,6 +95,7 @@ pub async fn ls(
     only_display_unallocated: bool,
     exclude_missing: bool,
     wrap_length: Option<usize>,
+    with_notes: bool,
 ) -> Result<()> {
     let mut summary = ReportSummary::default();
     let tapes_grouped_by_video = db::get_nist_tapes_grouped_by_video().await?;
@@ -121,7 +122,7 @@ pub async fn ls(
             s.push_str(" [MISSING]");
             s.bright_red().bold()
         } else {
-            s.blue()
+            s.blue().bold()
         };
 
         if let Some(term) = &find {
@@ -178,6 +179,15 @@ pub async fn ls(
             }
         }
 
+        if let Some(notes) = &video.notes {
+            if with_notes {
+                println!();
+                println!("NIST's Notes:");
+                let indented_notes = textwrap::indent(notes, "  ");
+                println!("{}", indented_notes.cyan());
+            }
+        }
+
         if let Some(notes) = &video.additional_notes {
             print_additional_notes(notes, wrap_length);
         }
@@ -201,13 +211,13 @@ pub async fn print(id: u32) -> Result<()> {
 }
 
 fn print_additional_notes(notes: &str, wrap_length: Option<usize>) {
+    println!();
+    println!("Additional Notes:");
+
     let sanitized_notes = notes.replace('\n', " ");
     let wrapped_lines = textwrap::wrap(&sanitized_notes, wrap_length.unwrap_or(100));
     let indent = "  ";
-    if let Some(first_line) = wrapped_lines.first() {
-        println!("* {}", first_line.purple());
-    }
-    for line in wrapped_lines.iter().skip(1) {
+    for line in wrapped_lines.iter() {
         println!("{}{}", indent, line.purple());
     }
 }
