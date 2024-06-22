@@ -335,11 +335,16 @@ pub struct NistTape {
     pub timecode: bool,
     pub release_files: Vec<(PathBuf, u64)>,
     pub video: NistVideo,
+    pub document_database_number: Option<String>,
 }
 
 impl NistTape {
     pub fn print(&self) {
-        println!("ID: {}", self.tape_id);
+        if let Some(number) = &self.document_database_number {
+            println!("ID: {} [{}]", self.tape_id, number);
+        } else {
+            println!("ID: {}", self.tape_id);
+        }
         println!("---");
         println!("Name: {}", self.tape_name);
         println!("---");
@@ -532,6 +537,7 @@ impl TryFrom<Vec<String>> for NistTape {
                 video_id,
                 ..Default::default()
             },
+            document_database_number: None,
         })
     }
 }

@@ -141,7 +141,11 @@ pub async fn ls(
 
         for tape in tapes.iter() {
             let mut s = String::new();
-            s.push_str(&format!("  {}: ", tape.tape_id));
+            if let Some(doc_number) = &tape.document_database_number {
+                s.push_str(&format!("  {} [{}]: ", tape.tape_id, doc_number));
+            } else {
+                s.push_str(&format!("  {}: ", tape.tape_id));
+            }
             if tape.derived_from == 0 {
                 s.push_str(&format!("{} ", tape.tape_name));
             } else {

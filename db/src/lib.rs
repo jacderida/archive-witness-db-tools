@@ -412,7 +412,8 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
                 duration_min,
                 batch,
                 clips,
-                timecode
+                timecode,
+                document_database_number
             FROM nist_tapes
             ORDER BY tape_id
         "#
@@ -439,6 +440,7 @@ pub async fn get_nist_tapes() -> Result<Vec<NistTape>> {
             timecode: row.timecode,
             release_files: Vec::new(),
             video: video.clone(),
+            document_database_number: row.document_database_number,
         })
     }
 
@@ -480,7 +482,8 @@ pub async fn get_nist_tapes_grouped_by_video() -> Result<BTreeMap<NistVideo, Vec
                 array_agg(duration_min ORDER BY tape_id) AS durations,
                 array_agg(batch ORDER BY tape_id) AS batches,
                 array_agg(clips ORDER BY tape_id) AS clips,
-                array_agg(timecode ORDER BY tape_id) AS timecodes
+                array_agg(timecode ORDER BY tape_id) AS timecodes,
+                array_agg(document_database_number ORDER BY tape_id) AS "document_database_numbers: Vec<Option<String>>"
             FROM nist_tapes
             GROUP BY video_id
         "#
@@ -507,6 +510,7 @@ pub async fn get_nist_tapes_grouped_by_video() -> Result<BTreeMap<NistVideo, Vec
         let batches = row.batches.unwrap_or_default();
         let clips = row.clips.unwrap_or_default();
         let timecodes = row.timecodes.unwrap_or_default();
+        let document_database_numbers = row.document_database_numbers.unwrap_or_default();
 
         let mut tapes = Vec::new();
         for i in 0..tape_ids.len() {
@@ -521,6 +525,7 @@ pub async fn get_nist_tapes_grouped_by_video() -> Result<BTreeMap<NistVideo, Vec
                 batch: batches[i],
                 clips: clips[i],
                 timecode: timecodes[i],
+                document_database_number: document_database_numbers[i].clone(),
                 release_files: Vec::new(),
                 video: video.clone(),
             });
