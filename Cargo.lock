@@ -652,7 +652,7 @@ dependencies = [
 
 [[package]]
 name = "db"
-version = "1.0.6"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "colored",
@@ -2877,7 +2877,7 @@ dependencies = [
 
 [[package]]
 name = "tools"
-version = "1.5.4"
+version = "1.6.0"
 dependencies = [
  "chrono",
  "clap 4.4.13",

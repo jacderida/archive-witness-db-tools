@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2024-06-22
+
+* db 1.1.0
+* tools 1.6.0
+
+### 🚀 Features
+
+- Provide `nist import document-numbers` cmd
+- [**breaking**] `nist tapes ls` updated to display the document number
+
 ## [1.5.4] - 2024-06-13
 
 * tools 1.5.4
