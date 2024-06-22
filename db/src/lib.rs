@@ -2,6 +2,7 @@ pub mod cumulus;
 pub mod error;
 pub mod helpers;
 pub mod models;
+mod static_data;
 
 use crate::error::{Error, Result};
 use crate::models::{
@@ -850,6 +851,26 @@ pub async fn import_nist_tapes_table_from_csv(csv_path: &Path) -> Result<()> {
             tape.batch,
             tape.clips,
             tape.timecode,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+pub async fn import_document_database_numbers() -> Result<()> {
+    let pool = establish_connection().await?;
+    let mut tx = pool.begin().await?;
+
+    for (id, number) in crate::static_data::DOCUMENT_DATABASE_NUMBERS.iter() {
+        println!("Assigning {} to tape {}", number, id);
+        sqlx::query!(
+            "UPDATE nist_tapes SET document_database_number = $1 WHERE tape_id = $2",
+            number,
+            id
         )
         .execute(&mut *tx)
         .await?;

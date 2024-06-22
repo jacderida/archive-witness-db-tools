@@ -206,7 +206,13 @@ enum NistSubcommands {
 /// Import CSV exports of NIST's Access database tables into the Postgres database.
 #[derive(Subcommand, Debug)]
 enum NistImportSubcommands {
-    /// Import a CSV export of the NIST Tapes table from their Access database
+    /// Import the document database numbers from static data.
+    ///
+    /// The document database number applies to the tapes table, so the tapes need to be imported
+    /// first.
+    #[clap(name = "document-numbers")]
+    DocumentNumbers {},
+    /// Import a CSV export of the NIST Tapes table from their Access database.
     ///
     /// The videos table must be imported before the tapes table.
     #[clap(name = "tapes")]
@@ -494,6 +500,9 @@ async fn main() -> Result<()> {
         },
         Commands::Nist(nist_command) => match nist_command {
             NistSubcommands::Import(import_command) => match import_command {
+                NistImportSubcommands::DocumentNumbers {} => {
+                    cmd::nist_import::document_numbers().await
+                }
                 NistImportSubcommands::Tapes { path } => cmd::nist_import::tapes(&path).await,
                 NistImportSubcommands::Videos { path } => cmd::nist_import::videos(&path).await,
             },
